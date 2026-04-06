@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PM역량인증시험 1차 결과 대시보드</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Malgun Gothic', 'Segoe UI', sans-serif; background: #0d1117; color: #c9d1d9; min-height: 100vh; }
+
+    /* ── Header ── */
+    .header {
+      background: linear-gradient(135deg, #161b22 0%, #21262d 100%);
+      border-bottom: 1px solid #30363d;
+      padding: 18px 32px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .header-left h1 { font-size: 1.25rem; font-weight: 700; color: #f0f6fc; letter-spacing: -0.3px; }
+    .header-left p  { font-size: 0.78rem; color: #8b949e; margin-top: 3px; }
+    .header-badge { background: #1f6feb; color: #fff; font-size: 0.73rem; padding: 4px 14px; border-radius: 20px; font-weight: 600; }
+
+    /* ── Filter bar ── */
+    .filter-bar {
+      background: #161b22; border-bottom: 1px solid #21262d;
+      padding: 10px 32px; display: flex; gap: 20px; align-items: center; flex-wrap: wrap;
+    }
+    .filter-group { display: flex; align-items: center; gap: 6px; }
+    .filter-group label { font-size: 0.75rem; color: #8b949e; white-space: nowrap; }
+    .filter-group select {
+      background: #21262d; border: 1px solid #30363d; color: #c9d1d9;
+      padding: 5px 10px; border-radius: 6px; font-size: 0.78rem; cursor: pointer;
+    }
+    .filter-group select:focus { outline: none; border-color: #1f6feb; }
+    .reset-btn {
+      margin-left: auto; background: #21262d; border: 1px solid #30363d;
+      color: #8b949e; padding: 5px 14px; border-radius: 6px; cursor: pointer; font-size: 0.78rem;
+    }
+    .reset-btn:hover { background: #30363d; color: #c9d1d9; }
+
+    /* ── Main ── */
+    .main { max-width: 1600px; margin: 0 auto; padding: 24px 32px; }
+
+    /* ── KPI Cards ── */
+    .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 22px; }
+    .kpi-card {
+      background: #161b22; border: 1px solid #30363d; border-radius: 10px;
+      padding: 18px 22px; position: relative; overflow: hidden;
+    }
+    .kpi-card::after {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    }
+    .kpi-blue::after   { background: #1f6feb; }
+    .kpi-green::after  { background: #3fb950; }
+    .kpi-yellow::after { background: #d29922; }
+    .kpi-red::after    { background: #f85149; }
+    .kpi-card .kpi-icon { font-size: 1.8rem; opacity: 0.18; position: absolute; right: 18px; top: 50%; transform: translateY(-50%); }
+    .kpi-card .kpi-label { font-size: 0.72rem; color: #8b949e; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .kpi-card .kpi-value { font-size: 2.1rem; font-weight: 700; color: #f0f6fc; line-height: 1; }
+    .kpi-card .kpi-sub   { font-size: 0.73rem; color: #6e7681; margin-top: 5px; }
+
+    /* ── Section ── */
+    .section-title { font-size: 0.82rem; color: #8b949e; font-weight: 600; margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.5px; border-left: 3px solid #1f6feb; padding-left: 10px; }
+
+    /* ── Grid layout ── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 18px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; margin-bottom: 18px; }
+    .col-span-2 { grid-column: span 2; }
+    .col-span-3 { grid-column: span 3; }
+
+    /* ── Chart Card ── */
+    .card {
+      background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 18px 20px;
+    }
+    .card h3 { font-size: 0.88rem; font-weight: 600; color: #c9d1d9; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid #21262d; display: flex; align-items: center; gap: 8px; }
+    .card h3 .tag { font-size: 0.68rem; background: #21262d; color: #8b949e; padding: 2px 8px; border-radius: 10px; font-weight: 400; }
+    .chart-wrap { position: relative; }
+    .chart-wrap.h240 { height: 240px; }
+    .chart-wrap.h280 { height: 280px; }
+    .chart-wrap.h200 { height: 200px; }
+
+    /* ── Table ── */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    th { background: #21262d; color: #8b949e; padding: 9px 14px; text-align: left; font-weight: 600; white-space: nowrap; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.3px; }
+    td { padding: 9px 14px; border-bottom: 1px solid #21262d; color: #c9d1d9; white-space: nowrap; }
+    tr:hover td { background: #1c2128; }
+    .badge-pass { background: #0f2d1c; color: #3fb950; padding: 2px 8px; border-radius: 8px; font-size: 0.72rem; font-weight: 600; }
+    .badge-fail { background: #2d0f0f; color: #f85149; padding: 2px 8px; border-radius: 8px; font-size: 0.72rem; font-weight: 600; }
+    .rate-cell { display: flex; align-items: center; gap: 8px; }
+    .rate-bar-bg { flex: 1; min-width: 60px; height: 5px; background: #21262d; border-radius: 3px; }
+    .rate-bar-fill { height: 5px; border-radius: 3px; }
+    .fill-good { background: #3fb950; }
+    .fill-warn { background: #d29922; }
+    .fill-bad  { background: #f85149; }
+    .warn-tag { font-size: 0.65rem; background: #2d1f00; color: #d29922; padding: 1px 6px; border-radius: 6px; margin-left: 4px; }
+    .score-num { font-weight: 700; }
+
+    /* ── Risk / summary box ── */
+    .risk-label { font-size: 0.72rem; color: #8b949e; margin-bottom: 8px; }
+    .risk-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .risk-item {
+      background: #21262d; border: 1px solid #30363d; border-radius: 8px;
+      padding: 8px 14px; display: flex; flex-direction: column; gap: 2px; min-width: 120px;
+    }
+    .risk-item.danger { border-color: #f85149; background: #2d0f0f; }
+    .risk-item.warn   { border-color: #d29922; background: #2d1f00; }
+    .risk-item .ri-div  { font-size: 0.78rem; font-weight: 700; color: #c9d1d9; }
+    .risk-item .ri-rate { font-size: 1.1rem; font-weight: 700; }
+    .danger .ri-rate { color: #f85149; }
+    .warn .ri-rate   { color: #d29922; }
+    .ri-count { font-size: 0.68rem; color: #6e7681; }
+
+    @media (max-width: 1100px) {
+      .kpi-row { grid-template-columns: repeat(2, 1fr); }
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      .col-span-2, .col-span-3 { grid-column: span 1; }
+      .main { padding: 16px; }
+      .filter-bar { padding: 10px 16px; }
+      .header { padding: 14px 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<div class="header">
+  <div class="header-left">
+    <h1>🏆 PM역량인증시험 1차 결과 대시보드</h1>
+    <p>2026년 · 지필평가 응시자 성과 거버넌스 현황</p>
+  </div>
+  <div class="header-badge">2026년 1차</div>
+</div>
+
+<!-- ── Filter bar ── -->
+<div class="filter-bar">
+  <div class="filter-group">
+    <label>본부</label>
+    <select id="filterDiv" onchange="applyFilter()">
+      <option value="all">전체</option>
+    </select>
+  </div>
+  <div class="filter-group">
+    <label>직위</label>
+    <select id="filterTitle" onchange="applyFilter()">
+      <option value="all">전체</option>
+    </select>
+  </div>
+  <div class="filter-group">
+    <label>합격여부</label>
+    <select id="filterPass" onchange="applyFilter()">
+      <option value="all">전체</option>
+      <option value="합격">합격</option>
+      <option value="불합격">불합격</option>
+    </select>
+  </div>
+  <button class="reset-btn" onclick="resetFilter()">초기화</button>
+</div>
+
+<!-- ── Main ── -->
+<div class="main">
+
+  <!-- KPI -->
+  <div class="kpi-row">
+    <div class="kpi-card kpi-blue">
+      <div class="kpi-icon">👥</div>
+      <div class="kpi-label">총 응시자</div>
+      <div class="kpi-value" id="kpiTotal">-</div>
+      <div class="kpi-sub">2026년 1차 평가</div>
+    </div>
+    <div class="kpi-card kpi-green">
+      <div class="kpi-icon">📊</div>
+      <div class="kpi-label">전체 평균 점수</div>
+      <div class="kpi-value" id="kpiAvg">-</div>
+      <div class="kpi-sub">합격 기준: 60점</div>
+    </div>
+    <div class="kpi-card kpi-yellow">
+      <div class="kpi-icon">✅</div>
+      <div class="kpi-label">합격률</div>
+      <div class="kpi-value" id="kpiPassRate">-</div>
+      <div class="kpi-sub" id="kpiPassSub">-</div>
+    </div>
+    <div class="kpi-card kpi-red">
+      <div class="kpi-icon">⚠️</div>
+      <div class="kpi-label">불합격자 수</div>
+      <div class="kpi-value" id="kpiFailCount">-</div>
+      <div class="kpi-sub" id="kpiFailSub">-</div>
+    </div>
+  </div>
+
+  <!-- Row 1: 본부별 합격률 + 평균점수 -->
+  <div class="grid-2" style="margin-bottom:18px">
+    <div class="card">
+      <h3>본부별 합격률 <span class="tag">기준선 60%</span></h3>
+      <div class="chart-wrap h240"><canvas id="divPassChart"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>본부별 평균 점수 <span class="tag">합격선 60점</span></h3>
+      <div class="chart-wrap h240"><canvas id="divScoreChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Row 2: 점수 분포 히스토그램 (전체 너비) -->
+  <div style="margin-bottom:18px">
+    <div class="card">
+      <h3>점수 분포 히스토그램 <span class="tag">파란선: 합격 기준 60점</span></h3>
+      <div class="chart-wrap h280"><canvas id="histChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Row 3: 직위별 + 점수 구간 -->
+  <div class="grid-2" style="margin-bottom:18px">
+    <div class="card">
+      <h3>직위별 합격 현황</h3>
+      <div class="chart-wrap h240"><canvas id="titleChart"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>점수 구간별 인원 <span class="tag">10점 단위</span></h3>
+      <div class="chart-wrap h240"><canvas id="bandChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Risk section -->
+  <div style="margin-bottom:18px">
+    <div class="card">
+      <h3>⚠️ 거버넌스 주의 — 합격률 낮은 조직 <span class="tag">합격률 70% 미만</span></h3>
+      <div class="risk-row" id="riskRow"></div>
+    </div>
+  </div>
+
+  <!-- 본부별 상세 테이블 -->
+  <div class="card" style="margin-bottom:18px">
+    <h3>본부별 상세 현황</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>본부</th>
+            <th>응시자</th>
+            <th>합격</th>
+            <th>불합격</th>
+            <th>합격률</th>
+            <th>평균점수</th>
+            <th>최고점</th>
+            <th>최저점</th>
+            <th>상태</th>
+          </tr>
+        </thead>
+        <tbody id="orgTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 전체 응시자 목록 -->
+  <div class="card">
+    <h3>전체 응시자 목록 <span class="tag" id="listCount">-</span></h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>사번</th>
+            <th>이름</th>
+            <th>직위</th>
+            <th>본부</th>
+            <th>사업부</th>
+            <th>점수</th>
+            <th>합격여부</th>
+          </tr>
+        </thead>
+        <tbody id="listTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<script>
+// ================================================================
+// 데이터: 이미지에서 추출 (실제 Excel 데이터로 교체 가능)
+// 컬럼: 사번, 이름, 직위, 본부, 사업부, 점수, 합격여부
+// ================================================================
+const PASS = 60;
+
+const ALL_DATA = [
+  {사번:"257080",이름:"김태조",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:89,합격여부:"합격"},
+  {사번:"248770",이름:"김영수",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:80,합격여부:"합격"},
+  {사번:"233363",이름:"강명기",직위:"책임연구원",본부:"VS사업본부",사업부:"VS SW",점수:79,합격여부:"합격"},
+  {사번:"257399",이름:"이진욱",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:79,합격여부:"합격"},
+  {사번:"231138",이름:"함혜정",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:78,합격여부:"합격"},
+  {사번:"252649",이름:"이용성",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:78,합격여부:"합격"},
+  {사번:"252641",이름:"김강웅",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:78,합격여부:"합격"},
+  {사번:"213357",이름:"주경호",직위:"책임연구원",본부:"HS사업본부",사업부:"HS가전",점수:76,합격여부:"합격"},
+  {사번:"295466",이름:"이종흠",직위:"책임연구원",본부:"ES사업본부",사업부:"ES제어",점수:76,합격여부:"합격"},
+  {사번:"257392",이름:"류현석",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:74,합격여부:"합격"},
+  {사번:"226486",이름:"정현규",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:74,합격여부:"합격"},
+  {사번:"249780",이름:"진용주",직위:"책임연구원",본부:"MS사업본부",사업부:"VS연구소",점수:74,합격여부:"합격"},
+  {사번:"225730",이름:"은현화",직위:"선임연구원",본부:"ES사업본부",사업부:"ES AIWS",점수:73,합격여부:"합격"},
+  {사번:"235277",이름:"조동승",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:73,합격여부:"합격"},
+  {사번:"228062",이름:"강우문",직위:"책임연구원",본부:"MS사업본부",사업부:"리빙솔루션",점수:73,합격여부:"합격"},
+  {사번:"272965",이름:"최영진",직위:"선임연구원",본부:"HS사업본부",사업부:"키친솔루션",점수:73,합격여부:"합격"},
+  {사번:"225821",이름:"김인복",직위:"책임연구원",본부:"MS사업본부",사업부:"키친솔루션",점수:72,합격여부:"합격"},
+  {사번:"251156",이름:"지지현",직위:"책임연구원",본부:"MS사업본부",사업부:"키친솔루션",점수:72,합격여부:"합격"},
+  {사번:"228279",이름:"박대원",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:72,합격여부:"합격"},
+  {사번:"268132",이름:"강현상",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:72,합격여부:"합격"},
+  {사번:"286612",이름:"장동근",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:72,합격여부:"합격"},
+  {사번:"262742",이름:"김기훈",직위:"책임연구원",본부:"HS사업본부",사업부:"HS연구개발",점수:71,합격여부:"합격"},
+  {사번:"213823",이름:"진영명",직위:"책임연구원",본부:"MS사업본부",사업부:"LACP",점수:71,합격여부:"합격"},
+  {사번:"249769",이름:"최봉석",직위:"책임연구원",본부:"MS사업본부",사업부:"자세대플랫폼",점수:71,합격여부:"합격"},
+  {사번:"250731",이름:"유진송",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:71,합격여부:"합격"},
+  {사번:"234531",이름:"채대돈",직위:"책임연구원",본부:"MS사업본부",사업부:"키친솔루션",점수:70,합격여부:"합격"},
+  {사번:"220115",이름:"김충희",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:70,합격여부:"합격"},
+  {사번:"256895",이름:"김지훈",직위:"책임연구원",본부:"MS사업본부",사업부:"키친솔루션",점수:69,합격여부:"합격"},
+  {사번:"229160",이름:"대태호",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:69,합격여부:"합격"},
+  {사번:"115612",이름:"채재형",직위:"책임연구원",본부:"HS사업본부",사업부:"HS연구개발",점수:69,합격여부:"합격"},
+  {사번:"131194",이름:"박선영",직위:"책임연구원",본부:"MS사업본부",사업부:"LACP",점수:69,합격여부:"합격"},
+  {사번:"263293",이름:"차진아",직위:"책임연구원",본부:"MS사업본부",사업부:"자세대플랫폼",점수:69,합격여부:"합격"},
+  {사번:"228612",이름:"강길영",직위:"책임연구원",본부:"MS사업본부",사업부:"인공지능CTO",점수:68,합격여부:"합격"},
+  {사번:"235337",이름:"이창하",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:68,합격여부:"합격"},
+  {사번:"240532",이름:"다태원",직위:"책임연구원",본부:"MS사업본부",사업부:"VS연구소",점수:67,합격여부:"합격"},
+  {사번:"254731",이름:"최진선",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:66,합격여부:"합격"},
+  {사번:"216148",이름:"최상삼",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:66,합격여부:"합격"},
+  {사번:"246848",이름:"지혜홍",직위:"책임연구원",본부:"MS사업본부",사업부:"리빙솔루션",점수:66,합격여부:"합격"},
+  {사번:"286617",이름:"김기범",직위:"선임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:65,합격여부:"합격"},
+  {사번:"283278",이름:"김종석",직위:"선임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:65,합격여부:"합격"},
+  {사번:"222532",이름:"김지환",직위:"책임연구원",본부:"VS사업본부",사업부:"SVIT",점수:65,합격여부:"합격"},
+  {사번:"257085",이름:"이우주",직위:"책임연구원",본부:"MS사업본부",사업부:"LACP",점수:65,합격여부:"합격"},
+  {사번:"140233",이름:"곽정신",직위:"책임연구원",본부:"CTO부문",사업부:"로봇선행",점수:65,합격여부:"합격"},
+  {사번:"244542",이름:"최진규",직위:"선임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:65,합격여부:"합격"},
+  {사번:"257100",이름:"최재윤",직위:"책임연구원",본부:"MS사업본부",사업부:"LACP",점수:65,합격여부:"합격"},
+  {사번:"238442",이름:"박남원",직위:"책임연구원",본부:"VS사업본부",사업부:"VS연구소",점수:64,합격여부:"합격"},
+  {사번:"111159",이름:"박종희",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:64,합격여부:"합격"},
+  {사번:"264076",이름:"강지영",직위:"책임연구원",본부:"ES사업본부",사업부:"ES제어",점수:64,합격여부:"합격"},
+  {사번:"263639",이름:"오상철",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:64,합격여부:"합격"},
+  {사번:"219843",이름:"강안위",직위:"책임연구원",본부:"CTO부문",사업부:"A2X센터",점수:64,합격여부:"합격"},
+  {사번:"313004",이름:"강국호",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:64,합격여부:"합격"},
+  {사번:"218231",이름:"도현구",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:63,합격여부:"합격"},
+  {사번:"112367",이름:"박지용",직위:"책임연구원",본부:"VS사업본부",사업부:"VS Head",점수:63,합격여부:"합격"},
+  {사번:"250821",이름:"안현덕",직위:"책임연구원",본부:"HS사업본부",사업부:"리빙솔루션",점수:63,합격여부:"합격"},
+  {사번:"308625",이름:"강태선",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:62,합격여부:"합격"},
+  {사번:"256932",이름:"장한오",직위:"선임연구원",본부:"HS사업본부",사업부:"리빙솔루션",점수:62,합격여부:"합격"},
+  {사번:"137081",이름:"이은태",직위:"책임연구원",본부:"MS사업본부",사업부:"LACP",점수:62,합격여부:"합격"},
+  {사번:"218820",이름:"조선위",직위:"선임연구원",본부:"VS사업본부",사업부:"VS연구소",점수:62,합격여부:"합격"},
+  {사번:"113975",이름:"유경희",직위:"책임연구원",본부:"HS사업본부",사업부:"HS연구소",점수:61,합격여부:"합격"},
+  {사번:"221394",이름:"이재민",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:61,합격여부:"합격"},
+  {사번:"217378",이름:"정재민",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:61,합격여부:"합격"},
+  {사번:"230415",이름:"도청종",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:61,합격여부:"합격"},
+  {사번:"230796",이름:"박도철",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:61,합격여부:"합격"},
+  {사번:"230794",이름:"강병관",직위:"책임연구원",본부:"ES사업본부",사업부:"RAC사업부",점수:60,합격여부:"합격"},
+  {사번:"264952",이름:"안인수",직위:"책임연구원",본부:"HS사업본부",사업부:"리빙솔루션",점수:60,합격여부:"합격"},
+  {사번:"264957",이름:"김새태",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:60,합격여부:"합격"},
+  {사번:"275245",이름:"강혜수",직위:"선임연구원",본부:"CTO부문",사업부:"로봇선행",점수:59,합격여부:"불합격"},
+  {사번:"264281",이름:"이현석",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:59,합격여부:"불합격"},
+  {사번:"262479",이름:"최진진",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:59,합격여부:"불합격"},
+  {사번:"257051",이름:"이수학",직위:"선임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:59,합격여부:"불합격"},
+  {사번:"286551",이름:"최청훈",직위:"선임연구원",본부:"MS사업본부",사업부:"서비스솔루션",점수:59,합격여부:"불합격"},
+  {사번:"220081",이름:"강영희",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:59,합격여부:"불합격"},
+  {사번:"131470",이름:"강병도",직위:"책임연구원",본부:"ES사업본부",사업부:"ES연구소",점수:58,합격여부:"불합격"},
+  {사번:"232179",이름:"오지훈",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:58,합격여부:"불합격"},
+  {사번:"281393",이름:"안선빈",직위:"선임연구원",본부:"MS사업본부",사업부:"리빙솔루션",점수:57,합격여부:"불합격"},
+  {사번:"251641",이름:"박웅준",직위:"책임연구원",본부:"MS사업본부",사업부:"리빙솔루션",점수:57,합격여부:"불합격"},
+  {사번:"260996",이름:"이지수",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:57,합격여부:"불합격"},
+  {사번:"263280",이름:"안원홍",직위:"책임연구원",본부:"MS사업본부",사업부:"자세대플랫폼",점수:56,합격여부:"불합격"},
+  {사번:"284788",이름:"최희경",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:56,합격여부:"불합격"},
+  {사번:"257203",이름:"정현중",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:56,합격여부:"불합격"},
+  {사번:"243454",이름:"소제홍",직위:"책임연구원",본부:"VS사업본부",사업부:"VS연구소",점수:56,합격여부:"불합격"},
+  {사번:"249937",이름:"강병진",직위:"선임연구원",본부:"ES사업본부",사업부:"ES연구소",점수:55,합격여부:"불합격"},
+  {사번:"246529",이름:"차상길",직위:"선임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:55,합격여부:"불합격"},
+  {사번:"286570",이름:"기민강",직위:"선임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:54,합격여부:"불합격"},
+  {사번:"271333",이름:"박진주",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:54,합격여부:"불합격"},
+  {사번:"249349",이름:"강성모",직위:"선임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:54,합격여부:"불합격"},
+  {사번:"226600",이름:"정동렬",직위:"선임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:54,합격여부:"불합격"},
+  {사번:"227184",이름:"곽천윤",직위:"책임연구원",본부:"CTO부문",사업부:"SoC센터",점수:53,합격여부:"불합격"},
+  {사번:"226205",이름:"강광영",직위:"책임연구원",본부:"VS사업본부",사업부:"VS연구소",점수:52,합격여부:"불합격"},
+  {사번:"263542",이름:"최산관",직위:"책임연구원",본부:"HS사업본부",사업부:"HS연구소",점수:49,합격여부:"불합격"},
+  {사번:"221301",이름:"이현주",직위:"책임연구원",본부:"ES사업본부",사업부:"ES연구소",점수:48,합격여부:"불합격"},
+  {사번:"309213",이름:"정진환",직위:"책임연구원",본부:"VS사업본부",사업부:"VS연구소",점수:45,합격여부:"불합격"},
+  {사번:"309214",이름:"이수열",직위:"선임연구원",본부:"ES사업본부",사업부:"RAC사업부",점수:45,합격여부:"불합격"},
+];
+
+// ── 필터 옵션 초기화 ──────────────────────────────
+(function initFilters() {
+  const divSet   = [...new Set(ALL_DATA.map(d => d.본부))].sort();
+  const titleSet = [...new Set(ALL_DATA.map(d => d.직위))].sort();
+  const divSel   = document.getElementById('filterDiv');
+  const titSel   = document.getElementById('filterTitle');
+  divSet.forEach(v   => { const o = document.createElement('option'); o.value = v; o.textContent = v; divSel.appendChild(o); });
+  titleSet.forEach(v => { const o = document.createElement('option'); o.value = v; o.textContent = v; titSel.appendChild(o); });
+})();
+
+// ── Chart instances ──────────────────────────────
+let charts = {};
+
+function destroyChart(id) {
+  if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+}
+
+// ── Helpers ──────────────────────────────────────
+function pct(a, b) { return b === 0 ? 0 : Math.round(a / b * 100); }
+function avg(arr)   { return arr.length === 0 ? 0 : (arr.reduce((s,v)=>s+v,0)/arr.length).toFixed(1); }
+function colorByRate(r) {
+  if (r >= 80) return { fill:'#3fb950', cls:'fill-good' };
+  if (r >= 60) return { fill:'#d29922', cls:'fill-warn' };
+  return { fill:'#f85149', cls:'fill-bad' };
+}
+
+// ── Main render ──────────────────────────────────
+function render(data) {
+  const total      = data.length;
+  const passArr    = data.filter(d => d.합격여부 === '합격');
+  const failArr    = data.filter(d => d.합격여부 === '불합격');
+  const passCount  = passArr.length;
+  const failCount  = failArr.length;
+  const passRate   = pct(passCount, total);
+  const avgScore   = avg(data.map(d => d.점수));
+
+  // KPI
+  document.getElementById('kpiTotal').textContent     = total + '명';
+  document.getElementById('kpiAvg').textContent       = avgScore + '점';
+  document.getElementById('kpiPassRate').textContent  = passRate + '%';
+  document.getElementById('kpiPassSub').textContent   = `합격 ${passCount}명 / 전체 ${total}명`;
+  document.getElementById('kpiFailCount').textContent = failCount + '명';
+  document.getElementById('kpiFailSub').textContent   = `불합격률 ${pct(failCount,total)}%`;
+
+  // ── 본부별 통계 집계 ──────────────────────────
+  const divMap = {};
+  data.forEach(d => {
+    if (!divMap[d.본부]) divMap[d.본부] = [];
+    divMap[d.본부].push(d);
+  });
+  const divLabels = Object.keys(divMap).sort();
+
+  // ── 차트 1: 본부별 합격률 ─────────────────────
+  destroyChart('divPassChart');
+  const divPassRates = divLabels.map(k => pct(divMap[k].filter(d=>d.합격여부==='합격').length, divMap[k].length));
+  charts['divPassChart'] = new Chart(document.getElementById('divPassChart'), {
+    type: 'bar',
+    data: {
+      labels: divLabels,
+      datasets: [{
+        label: '합격률 (%)',
+        data: divPassRates,
+        backgroundColor: divPassRates.map(r => r >= 80 ? '#3fb95088' : r >= 60 ? '#d2992288' : '#f8514988'),
+        borderColor:     divPassRates.map(r => r >= 80 ? '#3fb950'   : r >= 60 ? '#d29922'   : '#f85149'),
+        borderWidth: 2, borderRadius: 5,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        annotation: { annotations: { line1: { type:'line', yMin:60, yMax:60, borderColor:'#f85149', borderWidth:1.5, borderDash:[5,5] } } },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.raw}%` } }
+      },
+      scales: {
+        x: { grid:{color:'#21262d'}, ticks:{color:'#8b949e', font:{size:11}} },
+        y: { grid:{color:'#21262d'}, ticks:{color:'#8b949e', callback:v=>v+'%'}, min:0, max:100,
+             annotation: { annotations: { baseline: { type:'line', yMin:60, yMax:60, borderColor:'#f85149', borderWidth:1, borderDash:[4,4] } } }
+        }
+      }
+    }
+  });
+
+  // ── 차트 2: 본부별 평균점수 ───────────────────
+  destroyChart('divScoreChart');
+  const divAvgScores = divLabels.map(k => parseFloat(avg(divMap[k].map(d=>d.점수))));
+  charts['divScoreChart'] = new Chart(document.getElementById('divScoreChart'), {
+    type: 'bar',
+    data: {
+      labels: divLabels,
+      datasets: [{
+        label: '평균 점수',
+        data: divAvgScores,
+        backgroundColor: divAvgScores.map(s => s >= 70 ? '#1f6feb88' : s >= 60 ? '#d2992288' : '#f8514988'),
+        borderColor:     divAvgScores.map(s => s >= 70 ? '#1f6feb'   : s >= 60 ? '#d29922'   : '#f85149'),
+        borderWidth: 2, borderRadius: 5,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend:{display:false}, tooltip:{ callbacks:{label:ctx=>` ${ctx.raw}점`} } },
+      scales: {
+        x: { grid:{color:'#21262d'}, ticks:{color:'#8b949e',font:{size:11}} },
+        y: { grid:{color:'#21262d'}, ticks:{color:'#8b949e',callback:v=>v+'점'}, min:40, max:100 }
+      }
+    }
+  });
+
+  // ── 차트 3: 점수 분포 히스토그램 ─────────────
+  destroyChart('histChart');
+  const bins = {};
+  for (let i=40; i<=100; i+=2) bins[i] = 0;
+  data.forEach(d => {
+    const key = Math.floor(d.점수/2)*2;
+    if (bins[key] !== undefined) bins[key]++;
+    else bins[key] = 1;
+  });
+  const histLabels = Object.keys(bins).map(Number).sort((a,b)=>a-b);
+  const histValues = histLabels.map(k => bins[k]);
+  charts['histChart'] = new Chart(document.getElementById('histChart'), {
+    type: 'bar',
+    data: {
+      labels: histLabels.map(v=>v+'점'),
+      datasets: [{
+        label: '인원',
+        data: histValues,
+        backgroundColor: histLabels.map(v => v >= PASS ? '#1f6feb99' : '#f8514966'),
+        borderColor:     histLabels.map(v => v >= PASS ? '#1f6feb'   : '#f85149'),
+        borderWidth: 1, borderRadius: 3, barPercentage: 0.9, categoryPercentage: 0.9,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.raw}명` } }
+      },
+      scales: {
+        x: { grid:{color:'#21262d'}, ticks:{color:'#8b949e',font:{size:10}} },
+        y: { grid:{color:'#21262d'}, ticks:{color:'#8b949e',stepSize:1} }
+      }
+    }
+  });
+
+  // ── 차트 4: 직위별 합격 현황 (도넛) ──────────
+  destroyChart('titleChart');
+  const titleMap = {};
+  data.forEach(d => {
+    if (!titleMap[d.직위]) titleMap[d.직위] = {합격:0, 불합격:0};
+    titleMap[d.직위][d.합격여부]++;
+  });
+  const titleLabels = Object.keys(titleMap);
+  charts['titleChart'] = new Chart(document.getElementById('titleChart'), {
+    type: 'bar',
+    data: {
+      labels: titleLabels,
+      datasets: [
+        { label:'합격',   data: titleLabels.map(k=>titleMap[k].합격),   backgroundColor:'#3fb95088', borderColor:'#3fb950', borderWidth:2, borderRadius:4 },
+        { label:'불합격', data: titleLabels.map(k=>titleMap[k].불합격), backgroundColor:'#f8514966', borderColor:'#f85149', borderWidth:2, borderRadius:4 },
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ labels:{color:'#8b949e',font:{size:11}} } },
+      scales:{
+        x:{ grid:{color:'#21262d'}, ticks:{color:'#8b949e'} },
+        y:{ grid:{color:'#21262d'}, ticks:{color:'#8b949e',stepSize:1}, stacked:false }
+      }
+    }
+  });
+
+  // ── 차트 5: 점수 구간별 인원 ─────────────────
+  destroyChart('bandChart');
+  const bands = {'40-49':0,'50-59':0,'60-69':0,'70-79':0,'80-89':0,'90-100':0};
+  data.forEach(d => {
+    if      (d.점수>=90) bands['90-100']++;
+    else if (d.점수>=80) bands['80-89']++;
+    else if (d.점수>=70) bands['70-79']++;
+    else if (d.점수>=60) bands['60-69']++;
+    else if (d.점수>=50) bands['50-59']++;
+    else                 bands['40-49']++;
+  });
+  charts['bandChart'] = new Chart(document.getElementById('bandChart'), {
+    type: 'bar',
+    data: {
+      labels: Object.keys(bands),
+      datasets:[{
+        label:'인원',
+        data: Object.values(bands),
+        backgroundColor:['#f8514966','#f8514988','#3fb95066','#3fb95088','#1f6feb88','#1f6febcc'],
+        borderColor:    ['#f85149','#f85149','#3fb950','#3fb950','#1f6feb','#1f6feb'],
+        borderWidth:2, borderRadius:5,
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}, tooltip:{callbacks:{label:ctx=>` ${ctx.raw}명`}}},
+      scales:{
+        x:{grid:{color:'#21262d'}, ticks:{color:'#8b949e'}},
+        y:{grid:{color:'#21262d'}, ticks:{color:'#8b949e',stepSize:1}}
+      }
+    }
+  });
+
+  // ── 거버넌스 Risk 섹션 ────────────────────────
+  const riskRow = document.getElementById('riskRow');
+  riskRow.innerHTML = '';
+  let found = false;
+  divLabels.forEach(k => {
+    const arr  = divMap[k];
+    const pr   = pct(arr.filter(d=>d.합격여부==='합격').length, arr.length);
+    if (pr < 70) {
+      found = true;
+      const cls = pr < 50 ? 'danger' : 'warn';
+      const item = document.createElement('div');
+      item.className = `risk-item ${cls}`;
+      item.innerHTML = `<div class="ri-div">${k}</div><div class="ri-rate">${pr}%</div><div class="ri-count">응시 ${arr.length}명 · 불합격 ${arr.filter(d=>d.합격여부==='불합격').length}명</div>`;
+      riskRow.appendChild(item);
+    }
+  });
+  if (!found) {
+    riskRow.innerHTML = '<div style="font-size:0.82rem;color:#3fb950;padding:8px 0">✅ 모든 본부의 합격률이 70% 이상입니다.</div>';
+  }
+
+  // ── 본부별 상세 테이블 ────────────────────────
+  const tbody = document.getElementById('orgTableBody');
+  tbody.innerHTML = '';
+  divLabels.forEach(k => {
+    const arr    = divMap[k];
+    const pCnt   = arr.filter(d=>d.합격여부==='합격').length;
+    const fCnt   = arr.length - pCnt;
+    const pr     = pct(pCnt, arr.length);
+    const scores = arr.map(d=>d.점수);
+    const avgs   = avg(scores);
+    const maxS   = Math.max(...scores);
+    const minS   = Math.min(...scores);
+    const { fill, cls } = colorByRate(pr);
+    const warn   = pr < 70 ? '<span class="warn-tag">주의</span>' : '';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><strong>${k}</strong>${warn}</td>
+      <td>${arr.length}명</td>
+      <td><span class="badge-pass">${pCnt}명</span></td>
+      <td><span class="badge-fail">${fCnt}명</span></td>
+      <td>
+        <div class="rate-cell">
+          <span style="font-weight:700;color:${fill};min-width:36px">${pr}%</span>
+          <div class="rate-bar-bg"><div class="rate-bar-fill ${cls}" style="width:${pr}%"></div></div>
+        </div>
+      </td>
+      <td class="score-num">${avgs}점</td>
+      <td style="color:#3fb950">${maxS}점</td>
+      <td style="color:#f85149">${minS}점</td>
+      <td>${pr>=80?'<span style="color:#3fb950">●</span> 양호':pr>=60?'<span style="color:#d29922">●</span> 보통':'<span style="color:#f85149">●</span> 미달'}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // ── 전체 목록 테이블 ──────────────────────────
+  const listBody = document.getElementById('listTableBody');
+  listBody.innerHTML = '';
+  document.getElementById('listCount').textContent = data.length + '명';
+  data.forEach(d => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="color:#8b949e;font-size:0.75rem">${d.사번}</td>
+      <td><strong>${d.이름}</strong></td>
+      <td style="color:#8b949e">${d.직위}</td>
+      <td>${d.본부}</td>
+      <td style="color:#8b949e">${d.사업부}</td>
+      <td class="score-num" style="color:${d.점수>=PASS?'#3fb950':'#f85149'}">${d.점수}점</td>
+      <td><span class="${d.합격여부==='합격'?'badge-pass':'badge-fail'}">${d.합격여부}</span></td>
+    `;
+    listBody.appendChild(tr);
+  });
+}
+
+// ── 필터 적용 ──────────────────────────────────
+function applyFilter() {
+  const div   = document.getElementById('filterDiv').value;
+  const title = document.getElementById('filterTitle').value;
+  const pass  = document.getElementById('filterPass').value;
+  const filtered = ALL_DATA.filter(d =>
+    (div   === 'all' || d.본부    === div)   &&
+    (title === 'all' || d.직위   === title) &&
+    (pass  === 'all' || d.합격여부 === pass)
+  );
+  render(filtered);
+}
+
+function resetFilter() {
+  document.getElementById('filterDiv').value   = 'all';
+  document.getElementById('filterTitle').value = 'all';
+  document.getElementById('filterPass').value  = 'all';
+  render(ALL_DATA);
+}
+
+// ── 초기 렌더링 ──────────────────────────────
+render(ALL_DATA);
+</script>
+</body>
+</html>
