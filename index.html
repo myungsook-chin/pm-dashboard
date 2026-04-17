@@ -3,679 +3,797 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PM역량인증시험 1차 결과 대시보드</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <title>LED: Learning Experience Designer</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Malgun Gothic', 'Segoe UI', sans-serif; background: #0d1117; color: #c9d1d9; min-height: 100vh; }
-
-    /* ── Header ── */
-    .header {
-      background: linear-gradient(135deg, #161b22 0%, #21262d 100%);
-      border-bottom: 1px solid #30363d;
-      padding: 18px 32px;
-      display: flex; align-items: center; justify-content: space-between;
+    body {
+      font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+      background: #050810;
+      color: #e2e8f0;
+      min-height: 100vh;
+      overflow-x: hidden;
     }
-    .header-left h1 { font-size: 1.25rem; font-weight: 700; color: #f0f6fc; letter-spacing: -0.3px; }
-    .header-left p  { font-size: 0.78rem; color: #8b949e; margin-top: 3px; }
-    .header-badge { background: #1f6feb; color: #fff; font-size: 0.73rem; padding: 4px 14px; border-radius: 20px; font-weight: 600; }
-
-    /* ── Filter bar ── */
-    .filter-bar {
-      background: #161b22; border-bottom: 1px solid #21262d;
-      padding: 10px 32px; display: flex; gap: 20px; align-items: center; flex-wrap: wrap;
+    body::before {
+      content: '';
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background:
+        radial-gradient(ellipse at 20% 50%, rgba(0,212,255,0.04) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 20%, rgba(124,58,237,0.04) 0%, transparent 60%);
+      pointer-events: none; z-index: 0;
     }
-    .filter-group { display: flex; align-items: center; gap: 6px; }
-    .filter-group label { font-size: 0.75rem; color: #8b949e; white-space: nowrap; }
-    .filter-group select {
-      background: #21262d; border: 1px solid #30363d; color: #c9d1d9;
-      padding: 5px 10px; border-radius: 6px; font-size: 0.78rem; cursor: pointer;
+
+    /* ── HUD ── */
+    .hud {
+      position: fixed; top: 0; left: 0; right: 0;
+      background: rgba(5,8,16,0.96);
+      border-bottom: 1px solid rgba(0,212,255,0.15);
+      padding: 10px 24px;
+      display: none; align-items: center; gap: 16px;
+      z-index: 100; backdrop-filter: blur(12px);
     }
-    .filter-group select:focus { outline: none; border-color: #1f6feb; }
-    .reset-btn {
-      margin-left: auto; background: #21262d; border: 1px solid #30363d;
-      color: #8b949e; padding: 5px 14px; border-radius: 6px; cursor: pointer; font-size: 0.78rem;
+    .hud.visible { display: flex; }
+    .hud-act { font-size: 0.68rem; background: rgba(0,212,255,0.1); border: 1px solid rgba(0,212,255,0.25); color: #00d4ff; padding: 3px 12px; border-radius: 20px; font-weight: 700; white-space: nowrap; flex-shrink: 0; }
+    .hud-stat { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 90px; }
+    .hud-stat-row { display: flex; justify-content: space-between; align-items: center; }
+    .hud-stat-name { font-size: 0.63rem; color: #64748b; }
+    .hud-val { font-size: 0.68rem; font-weight: 700; }
+    .hud-bar-bg { height: 3px; background: #1e293b; border-radius: 2px; }
+    .hud-bar-fill { height: 3px; border-radius: 2px; transition: width 0.7s ease; }
+    .b-e { background: #00d4ff; } .v-e { color: #00d4ff; }
+    .b-c { background: #22c55e; } .v-c { color: #22c55e; }
+    .b-r { background: #a855f7; } .v-r { color: #a855f7; }
+    .b-f { background: #f59e0b; } .v-f { color: #f59e0b; }
+
+    /* ── Screens ── */
+    .screen { display: none; min-height: 100vh; position: relative; z-index: 1; flex-direction: column; }
+    .screen.active { display: flex; }
+
+    /* ── Buttons ── */
+    .btn-primary {
+      background: linear-gradient(135deg, #0ea5e9, #7c3aed);
+      color: #fff; border: none; padding: 14px 44px;
+      border-radius: 50px; font-size: 0.95rem; font-weight: 700;
+      cursor: pointer; letter-spacing: 0.5px; transition: transform 0.2s, box-shadow 0.2s;
     }
-    .reset-btn:hover { background: #30363d; color: #c9d1d9; }
-
-    /* ── Main ── */
-    .main { max-width: 1600px; margin: 0 auto; padding: 24px 32px; }
-
-    /* ── KPI Cards ── */
-    .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 22px; }
-    .kpi-card {
-      background: #161b22; border: 1px solid #30363d; border-radius: 10px;
-      padding: 18px 22px; position: relative; overflow: hidden;
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 36px rgba(14,165,233,0.35); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-ghost {
+      background: transparent; color: #475569; border: 1px solid #1e293b;
+      padding: 10px 28px; border-radius: 50px; font-size: 0.82rem;
+      cursor: pointer; transition: all 0.2s; margin-top: 12px;
     }
-    .kpi-card::after {
-      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    .btn-ghost:hover { background: #1e293b; color: #94a3b8; }
+
+    /* ── INTRO ── */
+    #screen-intro {
+      align-items: center; justify-content: center;
+      text-align: center; padding: 40px 20px;
     }
-    .kpi-blue::after   { background: #1f6feb; }
-    .kpi-green::after  { background: #3fb950; }
-    .kpi-yellow::after { background: #d29922; }
-    .kpi-red::after    { background: #f85149; }
-    .kpi-card .kpi-icon { font-size: 1.8rem; opacity: 0.18; position: absolute; right: 18px; top: 50%; transform: translateY(-50%); }
-    .kpi-card .kpi-label { font-size: 0.72rem; color: #8b949e; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
-    .kpi-card .kpi-value { font-size: 2.1rem; font-weight: 700; color: #f0f6fc; line-height: 1; }
-    .kpi-card .kpi-sub   { font-size: 0.73rem; color: #6e7681; margin-top: 5px; }
-
-    /* ── Section ── */
-    .section-title { font-size: 0.82rem; color: #8b949e; font-weight: 600; margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.5px; border-left: 3px solid #1f6feb; padding-left: 10px; }
-
-    /* ── Grid layout ── */
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 18px; }
-    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; margin-bottom: 18px; }
-    .col-span-2 { grid-column: span 2; }
-    .col-span-3 { grid-column: span 3; }
-
-    /* ── Chart Card ── */
-    .card {
-      background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 18px 20px;
+    .intro-eyebrow {
+      font-size: 0.72rem; color: #00d4ff; letter-spacing: 3px;
+      text-transform: uppercase; margin-bottom: 18px;
+      opacity: 0; animation: fadeUp 0.7s ease 0.3s forwards;
     }
-    .card h3 { font-size: 0.88rem; font-weight: 600; color: #c9d1d9; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid #21262d; display: flex; align-items: center; gap: 8px; }
-    .card h3 .tag { font-size: 0.68rem; background: #21262d; color: #8b949e; padding: 2px 8px; border-radius: 10px; font-weight: 400; }
-    .chart-wrap { position: relative; }
-    .chart-wrap.h240 { height: 240px; }
-    .chart-wrap.h280 { height: 280px; }
-    .chart-wrap.h200 { height: 200px; }
-
-    /* ── Table ── */
-    .table-wrap { overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
-    th { background: #21262d; color: #8b949e; padding: 9px 14px; text-align: left; font-weight: 600; white-space: nowrap; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.3px; }
-    td { padding: 9px 14px; border-bottom: 1px solid #21262d; color: #c9d1d9; white-space: nowrap; }
-    tr:hover td { background: #1c2128; }
-    .badge-pass { background: #0f2d1c; color: #3fb950; padding: 2px 8px; border-radius: 8px; font-size: 0.72rem; font-weight: 600; }
-    .badge-fail { background: #2d0f0f; color: #f85149; padding: 2px 8px; border-radius: 8px; font-size: 0.72rem; font-weight: 600; }
-    .rate-cell { display: flex; align-items: center; gap: 8px; }
-    .rate-bar-bg { flex: 1; min-width: 60px; height: 5px; background: #21262d; border-radius: 3px; }
-    .rate-bar-fill { height: 5px; border-radius: 3px; }
-    .fill-good { background: #3fb950; }
-    .fill-warn { background: #d29922; }
-    .fill-bad  { background: #f85149; }
-    .warn-tag { font-size: 0.65rem; background: #2d1f00; color: #d29922; padding: 1px 6px; border-radius: 6px; margin-left: 4px; }
-    .score-num { font-weight: 700; }
-
-    /* ── Risk / summary box ── */
-    .risk-label { font-size: 0.72rem; color: #8b949e; margin-bottom: 8px; }
-    .risk-row { display: flex; gap: 8px; flex-wrap: wrap; }
-    .risk-item {
-      background: #21262d; border: 1px solid #30363d; border-radius: 8px;
-      padding: 8px 14px; display: flex; flex-direction: column; gap: 2px; min-width: 120px;
+    .intro-title {
+      font-size: clamp(2.8rem, 7vw, 5rem); font-weight: 900;
+      color: #f0f6fc; line-height: 1.05; margin-bottom: 10px;
+      opacity: 0; animation: fadeUp 0.7s ease 0.6s forwards;
     }
-    .risk-item.danger { border-color: #f85149; background: #2d0f0f; }
-    .risk-item.warn   { border-color: #d29922; background: #2d1f00; }
-    .risk-item .ri-div  { font-size: 0.78rem; font-weight: 700; color: #c9d1d9; }
-    .risk-item .ri-rate { font-size: 1.1rem; font-weight: 700; }
-    .danger .ri-rate { color: #f85149; }
-    .warn .ri-rate   { color: #d29922; }
-    .ri-count { font-size: 0.68rem; color: #6e7681; }
+    .intro-title .accent { color: #00d4ff; }
+    .intro-sub {
+      font-size: 1rem; color: #475569; margin-bottom: 36px;
+      opacity: 0; animation: fadeUp 0.7s ease 0.9s forwards;
+    }
+    .intro-logline {
+      max-width: 560px; background: rgba(0,212,255,0.04);
+      border: 1px solid rgba(0,212,255,0.12); border-radius: 14px;
+      padding: 22px 28px; font-size: 0.9rem; color: #94a3b8; line-height: 1.8;
+      margin-bottom: 40px;
+      opacity: 0; animation: fadeUp 0.7s ease 1.1s forwards;
+    }
+    .intro-logline strong { color: #e2e8f0; }
+    .intro-cta { opacity: 0; animation: fadeUp 0.7s ease 1.4s forwards; }
+    .intro-meta { font-size: 0.72rem; color: #1e293b; margin-top: 14px; }
 
-    @media (max-width: 1100px) {
-      .kpi-row { grid-template-columns: repeat(2, 1fr); }
-      .grid-2, .grid-3 { grid-template-columns: 1fr; }
-      .col-span-2, .col-span-3 { grid-column: span 1; }
-      .main { padding: 16px; }
-      .filter-bar { padding: 10px 16px; }
-      .header { padding: 14px 16px; }
+    /* ── Act screen wrapper ── */
+    .act-wrap { padding-top: 68px; flex: 1; display: flex; flex-direction: column; }
+    .narrative { max-width: 760px; margin: 0 auto; padding: 36px 24px 8px; width: 100%; }
+    .choices-wrap { max-width: 760px; margin: 0 auto; padding: 0 24px 48px; width: 100%; }
+
+    /* ── Act badge ── */
+    .act-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(0,212,255,0.08); border: 1px solid rgba(0,212,255,0.2);
+      color: #00d4ff; font-size: 0.68rem; font-weight: 700;
+      padding: 4px 14px; border-radius: 20px; letter-spacing: 0.8px;
+      text-transform: uppercase; margin-bottom: 18px;
+    }
+    .act-title {
+      font-size: clamp(1.5rem, 3.5vw, 2.1rem); font-weight: 800;
+      color: #f0f6fc; margin-bottom: 14px; line-height: 1.2;
+    }
+    .act-title .hl { color: #00d4ff; }
+    .act-desc { font-size: 0.9rem; color: #94a3b8; line-height: 1.8; margin-bottom: 20px; }
+
+    /* ── Scenario box ── */
+    .scenario-box {
+      background: rgba(30,41,59,0.5); border: 1px solid #1e293b;
+      border-left: 3px solid #f59e0b; border-radius: 10px;
+      padding: 18px 22px; margin-bottom: 24px;
+    }
+    .scenario-lbl { font-size: 0.65rem; color: #f59e0b; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; margin-bottom: 8px; }
+    .scenario-txt { font-size: 0.88rem; color: #cbd5e1; line-height: 1.7; }
+
+    /* ── Learner panel ── */
+    .learner-panel {
+      display: flex; align-items: center; gap: 14px;
+      background: rgba(15,23,42,0.7); border: 1px solid #1e293b;
+      border-radius: 10px; padding: 14px 18px; margin-bottom: 22px;
+    }
+    .l-avatar {
+      width: 44px; height: 44px; border-radius: 50%;
+      background: linear-gradient(135deg, #1e40af, #7c3aed);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.3rem; flex-shrink: 0;
+    }
+    .l-name { font-size: 0.8rem; color: #e2e8f0; font-weight: 600; }
+    .l-status { font-size: 0.7rem; color: #475569; margin-top: 2px; }
+    .l-count { font-size: 1.5rem; font-weight: 800; color: #00d4ff; margin-left: auto; }
+    .l-count-lbl { font-size: 0.6rem; color: #475569; text-align: right; }
+
+    /* ── Choice cards ── */
+    .choices-lbl { font-size: 0.68rem; color: #334155; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px; }
+    .choice-card {
+      display: flex; align-items: flex-start; gap: 14px;
+      background: rgba(15,23,42,0.7); border: 1px solid #1e293b;
+      border-radius: 12px; padding: 18px 22px; margin-bottom: 10px;
+      cursor: pointer; transition: all 0.22s;
+    }
+    .choice-card:hover { border-color: #00d4ff; background: rgba(0,212,255,0.04); transform: translateX(4px); }
+    .choice-card:hover .c-num { background: rgba(0,212,255,0.15); color: #00d4ff; }
+    .c-num {
+      width: 30px; height: 30px; background: #1e293b; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.78rem; font-weight: 700; color: #475569;
+      flex-shrink: 0; transition: all 0.22s;
+    }
+    .c-text { font-size: 0.88rem; color: #cbd5e1; line-height: 1.6; flex: 1; }
+    .c-text strong { color: #e2e8f0; display: block; margin-bottom: 3px; }
+    .c-text span { font-size: 0.78rem; color: #475569; }
+
+    /* ── Result ── */
+    .result-wrap { max-width: 760px; margin: 0 auto; padding: 0 24px 48px; width: 100%; }
+    .result-header { text-align: center; padding: 28px 0 20px; }
+    .result-verdict { font-size: 2.2rem; margin-bottom: 6px; }
+    .result-ttl { font-size: 1.1rem; font-weight: 800; margin-bottom: 8px; }
+    .r-good { color: #22c55e; } .r-bad { color: #ef4444; } .r-ok { color: #f59e0b; }
+    .result-desc { font-size: 0.86rem; color: #64748b; line-height: 1.7; max-width: 500px; margin: 0 auto 24px; }
+
+    .stat-changes { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; margin-bottom: 22px; }
+    .sc-item {
+      display: flex; align-items: center; gap: 12px;
+      background: rgba(15,23,42,0.7); border: 1px solid #1e293b;
+      border-radius: 10px; padding: 12px 16px;
+    }
+    .sc-icon { font-size: 1.1rem; }
+    .sc-lbl { font-size: 0.7rem; color: #475569; }
+    .sc-val { font-size: 1.05rem; font-weight: 800; }
+    .up { color: #22c55e; } .dn { color: #ef4444; } .nc { color: #334155; }
+
+    .insight-box {
+      background: rgba(0,212,255,0.04); border: 1px solid rgba(0,212,255,0.13);
+      border-radius: 10px; padding: 16px 20px; margin-bottom: 26px;
+    }
+    .insight-lbl { font-size: 0.65rem; color: #00d4ff; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; margin-bottom: 6px; }
+    .insight-txt { font-size: 0.86rem; color: #cbd5e1; line-height: 1.7; }
+
+    /* ── Prologue specific ── */
+    .prologue-txt { font-size: 0.95rem; color: #94a3b8; line-height: 2; margin-bottom: 12px; }
+    .prologue-warn {
+      background: rgba(239,68,68,0.04); border-left: 3px solid #ef4444;
+      padding: 14px 18px; border-radius: 0 8px 8px 0;
+      font-size: 0.86rem; color: #fca5a5; line-height: 1.8; margin: 16px 0;
+    }
+    .role-card {
+      background: rgba(124,58,237,0.08); border: 1px solid rgba(124,58,237,0.25);
+      border-radius: 14px; padding: 26px; margin: 22px 0; text-align: center;
+    }
+    .role-icon { font-size: 2.4rem; margin-bottom: 10px; }
+    .role-ttl { font-size: 1.15rem; font-weight: 800; color: #c4b5fd; margin-bottom: 8px; }
+    .role-desc { font-size: 0.84rem; color: #94a3b8; line-height: 1.7; }
+    .role-desc span { color: #c4b5fd; }
+
+    /* ── Epilogue ── */
+    #screen-epilogue {
+      align-items: center; justify-content: center;
+      text-align: center; padding: 48px 24px;
+    }
+    .ep-eyebrow { font-size: 0.7rem; color: #f59e0b; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; }
+    .ep-tier { font-size: clamp(1.8rem, 5vw, 3rem); font-weight: 900; margin-bottom: 6px; }
+    .ep-sub { font-size: 0.9rem; color: #475569; margin-bottom: 28px; }
+
+    .score-ring { width: 130px; height: 130px; margin: 0 auto 22px; position: relative; }
+    .score-ring svg { transform: rotate(-90deg); }
+    .score-inner { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .score-val { font-size: 2rem; font-weight: 900; color: #f0f6fc; }
+    .score-lbl { font-size: 0.6rem; color: #334155; }
+
+    .final-stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; max-width: 680px; width: 100%; margin-bottom: 28px; }
+    .fs-card { background: rgba(15,23,42,0.8); border: 1px solid #1e293b; border-radius: 12px; padding: 14px 10px; text-align: center; }
+    .fs-icon { font-size: 1.3rem; margin-bottom: 4px; }
+    .fs-val { font-size: 1.5rem; font-weight: 800; }
+    .fs-lbl { font-size: 0.62rem; color: #334155; margin-top: 2px; }
+
+    .ep-msg {
+      max-width: 580px; background: rgba(0,212,255,0.04);
+      border: 1px solid rgba(0,212,255,0.12); border-radius: 14px;
+      padding: 20px 26px; font-size: 0.9rem; color: #94a3b8; line-height: 1.8; margin-bottom: 28px;
+    }
+    .ep-msg strong { color: #f0f6fc; }
+    .ep-closing {
+      font-size: 0.85rem; color: #1e293b; max-width: 500px; line-height: 1.8; margin-bottom: 28px;
+    }
+    .ep-closing strong { color: #00d4ff; font-size: 0.9rem; }
+
+    .ep-btns { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+
+    /* ── Utils ── */
+    @keyframes fadeUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
+    @media (max-width: 600px) {
+      .final-stats { grid-template-columns: repeat(2,1fr); }
+      .stat-changes { grid-template-columns: 1fr; }
+      .hud { gap: 8px; padding: 8px 12px; }
+      .hud-stat { min-width: 70px; }
     }
   </style>
 </head>
 <body>
 
-<!-- ── Header ── -->
-<div class="header">
-  <div class="header-left">
-    <h1>🏆 PM역량인증시험 1차 결과 대시보드</h1>
-    <p>2026년 · 지필평가 응시자 성과 거버넌스 현황</p>
+<!-- HUD -->
+<div class="hud" id="hud">
+  <div class="hud-act" id="hudAct">ACT 0</div>
+  <div class="hud-stat">
+    <div class="hud-stat-row">
+      <span class="hud-stat-name">참여율</span>
+      <span class="hud-val v-e" id="hE">50</span>
+    </div>
+    <div class="hud-bar-bg"><div class="hud-bar-fill b-e" id="bE" style="width:50%"></div></div>
   </div>
-  <div class="header-badge">2026년 1차</div>
+  <div class="hud-stat">
+    <div class="hud-stat-row">
+      <span class="hud-stat-name">완주율</span>
+      <span class="hud-val v-c" id="hC">40</span>
+    </div>
+    <div class="hud-bar-bg"><div class="hud-bar-fill b-c" id="bC" style="width:40%"></div></div>
+  </div>
+  <div class="hud-stat">
+    <div class="hud-stat-row">
+      <span class="hud-stat-name">재학습률</span>
+      <span class="hud-val v-r" id="hR">30</span>
+    </div>
+    <div class="hud-bar-bg"><div class="hud-bar-fill b-r" id="bR" style="width:30%"></div></div>
+  </div>
+  <div class="hud-stat">
+    <div class="hud-stat-row">
+      <span class="hud-stat-name">팬덤지수</span>
+      <span class="hud-val v-f" id="hF">20</span>
+    </div>
+    <div class="hud-bar-bg"><div class="hud-bar-fill b-f" id="bF" style="width:20%"></div></div>
+  </div>
 </div>
 
-<!-- ── Filter bar ── -->
-<div class="filter-bar">
-  <div class="filter-group">
-    <label>본부</label>
-    <select id="filterDiv" onchange="applyFilter()">
-      <option value="all">전체</option>
-    </select>
+<!-- ════════════════════════════════════ -->
+<!-- INTRO                               -->
+<!-- ════════════════════════════════════ -->
+<div class="screen active" id="screen-intro">
+  <div class="intro-eyebrow">HRD Conference 2026 · Interactive Experience</div>
+  <div class="intro-title"><span class="accent">LED</span><br>Learning Experience<br>Designer</div>
+  <div class="intro-sub">세계관 기반 몰입 학습 시뮬레이션</div>
+  <div class="intro-logline">
+    <strong>AI로 기존 질서가 붕괴된 세계.</strong><br>
+    당신은 'Learning Experience Designer'가 되어<br>학습이 사라진 조직에 다시<br>
+    <strong>지속 가능한 성장 시스템</strong>을 복원해야 한다.
   </div>
-  <div class="filter-group">
-    <label>직위</label>
-    <select id="filterTitle" onchange="applyFilter()">
-      <option value="all">전체</option>
-    </select>
+  <div class="intro-cta">
+    <button class="btn-primary" onclick="startGame()">▶ 게임 시작</button>
+    <p class="intro-meta">예상 소요시간 약 10분 · 4개의 미션</p>
   </div>
-  <div class="filter-group">
-    <label>합격여부</label>
-    <select id="filterPass" onchange="applyFilter()">
-      <option value="all">전체</option>
-      <option value="합격">합격</option>
-      <option value="불합격">불합격</option>
-    </select>
-  </div>
-  <button class="reset-btn" onclick="resetFilter()">초기화</button>
 </div>
 
-<!-- ── Main ── -->
-<div class="main">
-
-  <!-- KPI -->
-  <div class="kpi-row">
-    <div class="kpi-card kpi-blue">
-      <div class="kpi-icon">👥</div>
-      <div class="kpi-label">총 응시자</div>
-      <div class="kpi-value" id="kpiTotal">-</div>
-      <div class="kpi-sub">2026년 1차 평가</div>
-    </div>
-    <div class="kpi-card kpi-green">
-      <div class="kpi-icon">📊</div>
-      <div class="kpi-label">전체 평균 점수</div>
-      <div class="kpi-value" id="kpiAvg">-</div>
-      <div class="kpi-sub">합격 기준: 60점</div>
-    </div>
-    <div class="kpi-card kpi-yellow">
-      <div class="kpi-icon">✅</div>
-      <div class="kpi-label">합격률</div>
-      <div class="kpi-value" id="kpiPassRate">-</div>
-      <div class="kpi-sub" id="kpiPassSub">-</div>
-    </div>
-    <div class="kpi-card kpi-red">
-      <div class="kpi-icon">⚠️</div>
-      <div class="kpi-label">불합격자 수</div>
-      <div class="kpi-value" id="kpiFailCount">-</div>
-      <div class="kpi-sub" id="kpiFailSub">-</div>
-    </div>
-  </div>
-
-  <!-- Row 1: 본부별 합격률 + 평균점수 -->
-  <div class="grid-2" style="margin-bottom:18px">
-    <div class="card">
-      <h3>본부별 합격률 <span class="tag">기준선 60%</span></h3>
-      <div class="chart-wrap h240"><canvas id="divPassChart"></canvas></div>
-    </div>
-    <div class="card">
-      <h3>본부별 평균 점수 <span class="tag">합격선 60점</span></h3>
-      <div class="chart-wrap h240"><canvas id="divScoreChart"></canvas></div>
+<!-- ════════════════════════════════════ -->
+<!-- ACT 0: PROLOGUE                     -->
+<!-- ════════════════════════════════════ -->
+<div class="screen" id="screen-act0">
+  <div class="act-wrap">
+    <div class="narrative">
+      <div class="act-badge">🌍 ACT 0 · PROLOGUE</div>
+      <div class="act-title">붕괴된 <span class="hl">학습의 세계</span></div>
+      <p class="prologue-txt"><strong style="color:#e2e8f0">2027년.</strong> AI가 모든 지식을 대체했다.<br>기업의 HRD팀은 존재 의미를 잃었고, 학습자들은 방향을 잃었다.</p>
+      <div class="prologue-warn">
+        ⚠️ "콘텐츠는 넘쳐나는데 아무도 배우지 않는다."<br>
+        "플랫폼은 있는데 아무도 완주하지 않는다."<br>
+        "자율 학습을 줬는데 아무도 성장하지 않는다."
+      </div>
+      <p class="prologue-txt">그러나 <strong style="color:#00d4ff">새로운 역할</strong>이 등장했다.<br>학습을 '제공'하는 사람이 아니라,<br>학습이 <strong style="color:#e2e8f0">일어나도록 환경과 여정을 설계</strong>하는 사람.</p>
+      <div class="role-card">
+        <div class="role-icon">⚡</div>
+        <div class="role-ttl">당신의 역할: Learning Experience Designer</div>
+        <div class="role-desc">
+          학습을 알아서 하게 두는 사람이 아니라,<br>
+          학습이 <strong style="color:#c4b5fd">일어나는 환경</strong>을 만드는 사람입니다.<br><br>
+          <span>4개의 미션에서 매 선택이 학습자의<br>참여율 · 완주율 · 재학습률 · 팬덤지수에 영향을 미칩니다.</span>
+        </div>
+      </div>
+      <div style="text-align:center">
+        <button class="btn-primary" onclick="goScreen('act1')">첫 번째 미션 시작 →</button>
+      </div>
     </div>
   </div>
+</div>
 
-  <!-- Row 2: 점수 분포 히스토그램 (전체 너비) -->
-  <div style="margin-bottom:18px">
-    <div class="card">
-      <h3>점수 분포 히스토그램 <span class="tag">파란선: 합격 기준 60점</span></h3>
-      <div class="chart-wrap h280"><canvas id="histChart"></canvas></div>
+<!-- ════════════════════════════════════ -->
+<!-- ACT 1                               -->
+<!-- ════════════════════════════════════ -->
+<div class="screen" id="screen-act1">
+  <div class="act-wrap">
+    <div class="narrative">
+      <div class="act-badge">⚔️ ACT 1 · MISSION</div>
+      <div class="act-title">자기주도 학습의 <span class="hl">착각을 깨라</span></div>
+      <p class="act-desc">AI 기술 습득이 시급합니다. 100명의 학습자가 새 프로그램을 기다리고 있습니다. 지금 학습 환경을 설계해야 합니다.</p>
+      <div class="learner-panel">
+        <div class="l-avatar">👥</div>
+        <div>
+          <div class="l-name">대기 중인 학습자</div>
+          <div class="l-status">방향을 기다리는 중 · 이탈 위험 높음</div>
+        </div>
+        <div style="margin-left:auto;text-align:right">
+          <div class="l-count">100명</div>
+          <div class="l-count-lbl">대기중</div>
+        </div>
+      </div>
+      <div class="scenario-box">
+        <div class="scenario-lbl">📋 상황</div>
+        <div class="scenario-txt">"AI 활용 역량 강화 프로그램이 필요합니다. 예산도 충분하고 콘텐츠도 준비돼 있습니다. 어떻게 설계하시겠습니까?"</div>
+      </div>
+    </div>
+    <div class="choices-wrap">
+      <div class="choices-lbl">당신의 선택은?</div>
+      <div class="choice-card" onclick="choose(1,'A')">
+        <div class="c-num">A</div>
+        <div class="c-text"><strong>콘텐츠 라이브러리 오픈</strong><span>LMS에 강의 200개를 업로드한다. "필요한 사람이 알아서 들을 거야."</span></div>
+      </div>
+      <div class="choice-card" onclick="choose(1,'B')">
+        <div class="c-num">B</div>
+        <div class="c-text"><strong>완전 자율 학습 3개월</strong><span>기간을 주고 자유롭게 배우도록 한다. "자율성을 존중해야지."</span></div>
+      </div>
+      <div class="choice-card" onclick="choose(1,'C')">
+        <div class="c-num">C</div>
+        <div class="c-text"><strong>방향 있는 자율성 설계</strong><span>목표를 명확히 하고 단계적 미션과 체크포인트를 설계한다.</span></div>
+      </div>
     </div>
   </div>
+</div>
+<div class="screen" id="screen-act1-result">
+  <div class="act-wrap"><div class="result-wrap" id="r1"></div></div>
+</div>
 
-  <!-- Row 3: 직위별 + 점수 구간 -->
-  <div class="grid-2" style="margin-bottom:18px">
-    <div class="card">
-      <h3>직위별 합격 현황</h3>
-      <div class="chart-wrap h240"><canvas id="titleChart"></canvas></div>
+<!-- ════════════════════════════════════ -->
+<!-- ACT 2                               -->
+<!-- ════════════════════════════════════ -->
+<div class="screen" id="screen-act2">
+  <div class="act-wrap">
+    <div class="narrative">
+      <div class="act-badge">🗺️ ACT 2 · MISSION</div>
+      <div class="act-title">학습은 <span class="hl">'여정'</span>이다</div>
+      <p class="act-desc">참여자들이 모이기 시작했습니다. 이제 학습이 <strong style="color:#e2e8f0">점이 아닌 여정</strong>이 되도록 구조를 설계해야 합니다.</p>
+      <div class="learner-panel">
+        <div class="l-avatar">🧭</div>
+        <div>
+          <div class="l-name">학습 여정 맵</div>
+          <div class="l-status">시작점은 있지만 경로가 없음 · 완주율 하락 예측</div>
+        </div>
+      </div>
+      <div class="scenario-box">
+        <div class="scenario-lbl">📋 상황</div>
+        <div class="scenario-txt">"학습자들이 시작은 했지만 중간에 이탈하고 있습니다. 학습이 지속되도록 여정을 어떻게 구성하시겠습니까?"</div>
+      </div>
     </div>
-    <div class="card">
-      <h3>점수 구간별 인원 <span class="tag">10점 단위</span></h3>
-      <div class="chart-wrap h240"><canvas id="bandChart"></canvas></div>
-    </div>
-  </div>
-
-  <!-- Risk section -->
-  <div style="margin-bottom:18px">
-    <div class="card">
-      <h3>⚠️ 거버넌스 주의 — 합격률 낮은 조직 <span class="tag">합격률 70% 미만</span></h3>
-      <div class="risk-row" id="riskRow"></div>
-    </div>
-  </div>
-
-  <!-- 본부별 상세 테이블 -->
-  <div class="card" style="margin-bottom:18px">
-    <h3>본부별 상세 현황</h3>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>본부</th>
-            <th>응시자</th>
-            <th>합격</th>
-            <th>불합격</th>
-            <th>합격률</th>
-            <th>평균점수</th>
-            <th>최고점</th>
-            <th>최저점</th>
-            <th>상태</th>
-          </tr>
-        </thead>
-        <tbody id="orgTableBody"></tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- 전체 응시자 목록 -->
-  <div class="card">
-    <h3>전체 응시자 목록 <span class="tag" id="listCount">-</span></h3>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>사번</th>
-            <th>이름</th>
-            <th>직위</th>
-            <th>본부</th>
-            <th>사업부</th>
-            <th>점수</th>
-            <th>합격여부</th>
-          </tr>
-        </thead>
-        <tbody id="listTableBody"></tbody>
-      </table>
+    <div class="choices-wrap">
+      <div class="choices-lbl">당신의 선택은?</div>
+      <div class="choice-card" onclick="choose(2,'A')">
+        <div class="c-num">A</div>
+        <div class="c-text"><strong>집합 교육 1회 완결</strong><span>오프라인 집합 교육으로 핵심 내용을 한 번에 전달하고 마무리한다.</span></div>
+      </div>
+      <div class="choice-card" onclick="choose(2,'B')">
+        <div class="c-num">B</div>
+        <div class="c-text"><strong>반복 사이클 러닝저니</strong><span>목표 설정 → 실습 → 피드백 → 재도전의 반복 구조를 설계한다.</span></div>
+      </div>
+      <div class="choice-card" onclick="choose(2,'C')">
+        <div class="c-num">C</div>
+        <div class="c-text"><strong>주간 정보 뉴스레터</strong><span>매주 유용한 정보를 담은 뉴스레터를 발송해 연결감을 유지한다.</span></div>
+      </div>
     </div>
   </div>
+</div>
+<div class="screen" id="screen-act2-result">
+  <div class="act-wrap"><div class="result-wrap" id="r2"></div></div>
+</div>
 
-</div><!-- /main -->
+<!-- ════════════════════════════════════ -->
+<!-- ACT 3                               -->
+<!-- ════════════════════════════════════ -->
+<div class="screen" id="screen-act3">
+  <div class="act-wrap">
+    <div class="narrative">
+      <div class="act-badge">🌌 ACT 3 · MISSION</div>
+      <div class="act-title">세계관을 입혀 <span class="hl">몰입을 만들어라</span></div>
+      <p class="act-desc">여정은 설계했습니다. 이제 학습자들이 <strong style="color:#ef4444">"해야 하는 학습"</strong>을 <strong style="color:#00d4ff">"참여하고 싶은 경험"</strong>으로 바꿀 차례입니다.</p>
+      <div class="learner-panel">
+        <div class="l-avatar">🎭</div>
+        <div>
+          <div class="l-name">같은 콘텐츠, 다른 경험</div>
+          <div class="l-status">세계관 없음 → 의무감 · 세계관 있음 → 몰입</div>
+        </div>
+      </div>
+      <div class="scenario-box">
+        <div class="scenario-lbl">📋 상황</div>
+        <div class="scenario-txt">"콘텐츠는 같습니다. 하지만 어떻게 전달하느냐에 따라 완주율이 달라집니다. 같은 내용을 어떻게 제시하시겠습니까?"</div>
+      </div>
+    </div>
+    <div class="choices-wrap">
+      <div class="choices-lbl">당신의 선택은?</div>
+      <div class="choice-card" onclick="choose(3,'A')">
+        <div class="c-num">A</div>
+        <div class="c-text"><strong>목차형 강의 자료</strong><span>챕터 1, 2, 3… 순서대로 정리된 PDF와 강의를 제공한다.</span></div>
+      </div>
+      <div class="choice-card" onclick="choose(3,'B')">
+        <div class="c-num">B</div>
+        <div class="c-text"><strong>스토리 기반 미션 설계</strong><span>"당신은 AI 시대의 탐험가입니다. 각 미션을 완료하면 다음 세계로 이동합니다."</span></div>
+      </div>
+      <div class="choice-card" onclick="choose(3,'C')">
+        <div class="c-num">C</div>
+        <div class="c-text"><strong>퀴즈 + 포인트 추가</strong><span>기존 강의에 퀴즈와 포인트 시스템만 추가한다.</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="screen" id="screen-act3-result">
+  <div class="act-wrap"><div class="result-wrap" id="r3"></div></div>
+</div>
+
+<!-- ════════════════════════════════════ -->
+<!-- ACT 4                               -->
+<!-- ════════════════════════════════════ -->
+<div class="screen" id="screen-act4">
+  <div class="act-wrap">
+    <div class="narrative">
+      <div class="act-badge">🔥 ACT 4 · FINAL MISSION</div>
+      <div class="act-title">팬덤과 <span class="hl">지속성을 창조하라</span></div>
+      <p class="act-desc">마지막 미션입니다. 학습이 마무리 단계에 접어들었습니다. <strong style="color:#e2e8f0">끝이 아닌 시작</strong>이 되도록 만드세요.</p>
+      <div class="learner-panel">
+        <div class="l-avatar">⭐</div>
+        <div>
+          <div class="l-name">학습 완료 후</div>
+          <div class="l-status">소비자로 끝낼 것인가 · 팬으로 만들 것인가</div>
+        </div>
+      </div>
+      <div class="scenario-box">
+        <div class="scenario-lbl">📋 상황</div>
+        <div class="scenario-txt">"첫 번째 프로그램이 끝나갑니다. 지속 가능한 학습 문화를 만들기 위해 어떤 경험 장치를 설계하시겠습니까?"</div>
+      </div>
+    </div>
+    <div class="choices-wrap">
+      <div class="choices-lbl">당신의 선택은?</div>
+      <div class="choice-card" onclick="choose(4,'A')">
+        <div class="c-num">A</div>
+        <div class="c-text"><strong>수료증 발급 후 종료</strong><span>수료증을 발급하고 다음 과정을 준비한다. 잘 마무리된 프로그램.</span></div>
+      </div>
+      <div class="choice-card" onclick="choose(4,'B')">
+        <div class="c-num">B</div>
+        <div class="c-text"><strong>팬덤 생태계 설계</strong><span>커뮤니티 + 배지/레벨 + 동료 추천 + 다음 챕터 예고 + 오프라인 보상.</span></div>
+      </div>
+      <div class="choice-card" onclick="choose(4,'C')">
+        <div class="c-num">C</div>
+        <div class="c-text"><strong>다음 과정 할인 쿠폰</strong><span>수료자에게 다음 강의 할인 혜택을 제공해 재참여를 유도한다.</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="screen" id="screen-act4-result">
+  <div class="act-wrap"><div class="result-wrap" id="r4"></div></div>
+</div>
+
+<!-- ════════════════════════════════════ -->
+<!-- EPILOGUE                            -->
+<!-- ════════════════════════════════════ -->
+<div class="screen" id="screen-epilogue">
+  <div class="ep-eyebrow">🏆 ALL MISSIONS COMPLETE · EPILOGUE</div>
+  <div class="score-ring">
+    <svg width="130" height="130" viewBox="0 0 130 130">
+      <circle cx="65" cy="65" r="54" fill="none" stroke="#1e293b" stroke-width="10"/>
+      <circle cx="65" cy="65" r="54" fill="none" stroke="#00d4ff" stroke-width="10"
+              stroke-dasharray="339.3" id="scoreArc" stroke-dashoffset="339.3" stroke-linecap="round"/>
+    </svg>
+    <div class="score-inner">
+      <div class="score-val" id="scoreVal">0</div>
+      <div class="score-lbl">최종점수</div>
+    </div>
+  </div>
+  <div class="ep-tier" id="epTier">-</div>
+  <div class="ep-sub" id="epSub">-</div>
+  <div class="final-stats" id="finalStats"></div>
+  <div class="ep-msg" id="epMsg"></div>
+  <div class="ep-closing">
+    "학습은 학습자가 하지만,<br>
+    성장은 잘 설계된 경험에서 시작된다.<br>
+    <strong>HRD는 이제 '경험 설계자'다."</strong>
+  </div>
+  <div class="ep-btns">
+    <button class="btn-primary" onclick="restart()">🔄 다시 도전</button>
+    <button class="btn-ghost" onclick="shareResult()">📊 내 선택 보기</button>
+  </div>
+</div>
 
 <script>
-// ================================================================
-// 데이터: 이미지에서 추출 (실제 Excel 데이터로 교체 가능)
-// 컬럼: 사번, 이름, 직위, 본부, 사업부, 점수, 합격여부
-// ================================================================
-const PASS = 60;
+// ═══════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════
+let S = { e:50, c:40, r:30, f:20 };
+let choices = {};
 
-const ALL_DATA = [
-  {사번:"257080",이름:"김태조",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:89,합격여부:"합격"},
-  {사번:"248770",이름:"김영수",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:80,합격여부:"합격"},
-  {사번:"233363",이름:"강명기",직위:"책임연구원",본부:"VS사업본부",사업부:"VS SW",점수:79,합격여부:"합격"},
-  {사번:"257399",이름:"이진욱",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:79,합격여부:"합격"},
-  {사번:"231138",이름:"함혜정",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:78,합격여부:"합격"},
-  {사번:"252649",이름:"이용성",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:78,합격여부:"합격"},
-  {사번:"252641",이름:"김강웅",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:78,합격여부:"합격"},
-  {사번:"213357",이름:"주경호",직위:"책임연구원",본부:"HS사업본부",사업부:"HS가전",점수:76,합격여부:"합격"},
-  {사번:"295466",이름:"이종흠",직위:"책임연구원",본부:"ES사업본부",사업부:"ES제어",점수:76,합격여부:"합격"},
-  {사번:"257392",이름:"류현석",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:74,합격여부:"합격"},
-  {사번:"226486",이름:"정현규",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:74,합격여부:"합격"},
-  {사번:"249780",이름:"진용주",직위:"책임연구원",본부:"MS사업본부",사업부:"VS연구소",점수:74,합격여부:"합격"},
-  {사번:"225730",이름:"은현화",직위:"선임연구원",본부:"ES사업본부",사업부:"ES AIWS",점수:73,합격여부:"합격"},
-  {사번:"235277",이름:"조동승",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:73,합격여부:"합격"},
-  {사번:"228062",이름:"강우문",직위:"책임연구원",본부:"MS사업본부",사업부:"리빙솔루션",점수:73,합격여부:"합격"},
-  {사번:"272965",이름:"최영진",직위:"선임연구원",본부:"HS사업본부",사업부:"키친솔루션",점수:73,합격여부:"합격"},
-  {사번:"225821",이름:"김인복",직위:"책임연구원",본부:"MS사업본부",사업부:"키친솔루션",점수:72,합격여부:"합격"},
-  {사번:"251156",이름:"지지현",직위:"책임연구원",본부:"MS사업본부",사업부:"키친솔루션",점수:72,합격여부:"합격"},
-  {사번:"228279",이름:"박대원",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:72,합격여부:"합격"},
-  {사번:"268132",이름:"강현상",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:72,합격여부:"합격"},
-  {사번:"286612",이름:"장동근",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:72,합격여부:"합격"},
-  {사번:"262742",이름:"김기훈",직위:"책임연구원",본부:"HS사업본부",사업부:"HS연구개발",점수:71,합격여부:"합격"},
-  {사번:"213823",이름:"진영명",직위:"책임연구원",본부:"MS사업본부",사업부:"LACP",점수:71,합격여부:"합격"},
-  {사번:"249769",이름:"최봉석",직위:"책임연구원",본부:"MS사업본부",사업부:"자세대플랫폼",점수:71,합격여부:"합격"},
-  {사번:"250731",이름:"유진송",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:71,합격여부:"합격"},
-  {사번:"234531",이름:"채대돈",직위:"책임연구원",본부:"MS사업본부",사업부:"키친솔루션",점수:70,합격여부:"합격"},
-  {사번:"220115",이름:"김충희",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:70,합격여부:"합격"},
-  {사번:"256895",이름:"김지훈",직위:"책임연구원",본부:"MS사업본부",사업부:"키친솔루션",점수:69,합격여부:"합격"},
-  {사번:"229160",이름:"대태호",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:69,합격여부:"합격"},
-  {사번:"115612",이름:"채재형",직위:"책임연구원",본부:"HS사업본부",사업부:"HS연구개발",점수:69,합격여부:"합격"},
-  {사번:"131194",이름:"박선영",직위:"책임연구원",본부:"MS사업본부",사업부:"LACP",점수:69,합격여부:"합격"},
-  {사번:"263293",이름:"차진아",직위:"책임연구원",본부:"MS사업본부",사업부:"자세대플랫폼",점수:69,합격여부:"합격"},
-  {사번:"228612",이름:"강길영",직위:"책임연구원",본부:"MS사업본부",사업부:"인공지능CTO",점수:68,합격여부:"합격"},
-  {사번:"235337",이름:"이창하",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:68,합격여부:"합격"},
-  {사번:"240532",이름:"다태원",직위:"책임연구원",본부:"MS사업본부",사업부:"VS연구소",점수:67,합격여부:"합격"},
-  {사번:"254731",이름:"최진선",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:66,합격여부:"합격"},
-  {사번:"216148",이름:"최상삼",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:66,합격여부:"합격"},
-  {사번:"246848",이름:"지혜홍",직위:"책임연구원",본부:"MS사업본부",사업부:"리빙솔루션",점수:66,합격여부:"합격"},
-  {사번:"286617",이름:"김기범",직위:"선임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:65,합격여부:"합격"},
-  {사번:"283278",이름:"김종석",직위:"선임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:65,합격여부:"합격"},
-  {사번:"222532",이름:"김지환",직위:"책임연구원",본부:"VS사업본부",사업부:"SVIT",점수:65,합격여부:"합격"},
-  {사번:"257085",이름:"이우주",직위:"책임연구원",본부:"MS사업본부",사업부:"LACP",점수:65,합격여부:"합격"},
-  {사번:"140233",이름:"곽정신",직위:"책임연구원",본부:"CTO부문",사업부:"로봇선행",점수:65,합격여부:"합격"},
-  {사번:"244542",이름:"최진규",직위:"선임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:65,합격여부:"합격"},
-  {사번:"257100",이름:"최재윤",직위:"책임연구원",본부:"MS사업본부",사업부:"LACP",점수:65,합격여부:"합격"},
-  {사번:"238442",이름:"박남원",직위:"책임연구원",본부:"VS사업본부",사업부:"VS연구소",점수:64,합격여부:"합격"},
-  {사번:"111159",이름:"박종희",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:64,합격여부:"합격"},
-  {사번:"264076",이름:"강지영",직위:"책임연구원",본부:"ES사업본부",사업부:"ES제어",점수:64,합격여부:"합격"},
-  {사번:"263639",이름:"오상철",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:64,합격여부:"합격"},
-  {사번:"219843",이름:"강안위",직위:"책임연구원",본부:"CTO부문",사업부:"A2X센터",점수:64,합격여부:"합격"},
-  {사번:"313004",이름:"강국호",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:64,합격여부:"합격"},
-  {사번:"218231",이름:"도현구",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:63,합격여부:"합격"},
-  {사번:"112367",이름:"박지용",직위:"책임연구원",본부:"VS사업본부",사업부:"VS Head",점수:63,합격여부:"합격"},
-  {사번:"250821",이름:"안현덕",직위:"책임연구원",본부:"HS사업본부",사업부:"리빙솔루션",점수:63,합격여부:"합격"},
-  {사번:"308625",이름:"강태선",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:62,합격여부:"합격"},
-  {사번:"256932",이름:"장한오",직위:"선임연구원",본부:"HS사업본부",사업부:"리빙솔루션",점수:62,합격여부:"합격"},
-  {사번:"137081",이름:"이은태",직위:"책임연구원",본부:"MS사업본부",사업부:"LACP",점수:62,합격여부:"합격"},
-  {사번:"218820",이름:"조선위",직위:"선임연구원",본부:"VS사업본부",사업부:"VS연구소",점수:62,합격여부:"합격"},
-  {사번:"113975",이름:"유경희",직위:"책임연구원",본부:"HS사업본부",사업부:"HS연구소",점수:61,합격여부:"합격"},
-  {사번:"221394",이름:"이재민",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:61,합격여부:"합격"},
-  {사번:"217378",이름:"정재민",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:61,합격여부:"합격"},
-  {사번:"230415",이름:"도청종",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:61,합격여부:"합격"},
-  {사번:"230796",이름:"박도철",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:61,합격여부:"합격"},
-  {사번:"230794",이름:"강병관",직위:"책임연구원",본부:"ES사업본부",사업부:"RAC사업부",점수:60,합격여부:"합격"},
-  {사번:"264952",이름:"안인수",직위:"책임연구원",본부:"HS사업본부",사업부:"리빙솔루션",점수:60,합격여부:"합격"},
-  {사번:"264957",이름:"김새태",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:60,합격여부:"합격"},
-  {사번:"275245",이름:"강혜수",직위:"선임연구원",본부:"CTO부문",사업부:"로봇선행",점수:59,합격여부:"불합격"},
-  {사번:"264281",이름:"이현석",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:59,합격여부:"불합격"},
-  {사번:"262479",이름:"최진진",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:59,합격여부:"불합격"},
-  {사번:"257051",이름:"이수학",직위:"선임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:59,합격여부:"불합격"},
-  {사번:"286551",이름:"최청훈",직위:"선임연구원",본부:"MS사업본부",사업부:"서비스솔루션",점수:59,합격여부:"불합격"},
-  {사번:"220081",이름:"강영희",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:59,합격여부:"불합격"},
-  {사번:"131470",이름:"강병도",직위:"책임연구원",본부:"ES사업본부",사업부:"ES연구소",점수:58,합격여부:"불합격"},
-  {사번:"232179",이름:"오지훈",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:58,합격여부:"불합격"},
-  {사번:"281393",이름:"안선빈",직위:"선임연구원",본부:"MS사업본부",사업부:"리빙솔루션",점수:57,합격여부:"불합격"},
-  {사번:"251641",이름:"박웅준",직위:"책임연구원",본부:"MS사업본부",사업부:"리빙솔루션",점수:57,합격여부:"불합격"},
-  {사번:"260996",이름:"이지수",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:57,합격여부:"불합격"},
-  {사번:"263280",이름:"안원홍",직위:"책임연구원",본부:"MS사업본부",사업부:"자세대플랫폼",점수:56,합격여부:"불합격"},
-  {사번:"284788",이름:"최희경",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:56,합격여부:"불합격"},
-  {사번:"257203",이름:"정현중",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:56,합격여부:"불합격"},
-  {사번:"243454",이름:"소제홍",직위:"책임연구원",본부:"VS사업본부",사업부:"VS연구소",점수:56,합격여부:"불합격"},
-  {사번:"249937",이름:"강병진",직위:"선임연구원",본부:"ES사업본부",사업부:"ES연구소",점수:55,합격여부:"불합격"},
-  {사번:"246529",이름:"차상길",직위:"선임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:55,합격여부:"불합격"},
-  {사번:"286570",이름:"기민강",직위:"선임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:54,합격여부:"불합격"},
-  {사번:"271333",이름:"박진주",직위:"책임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:54,합격여부:"불합격"},
-  {사번:"249349",이름:"강성모",직위:"선임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:54,합격여부:"불합격"},
-  {사번:"226600",이름:"정동렬",직위:"선임연구원",본부:"MS사업본부",사업부:"webOS사업",점수:54,합격여부:"불합격"},
-  {사번:"227184",이름:"곽천윤",직위:"책임연구원",본부:"CTO부문",사업부:"SoC센터",점수:53,합격여부:"불합격"},
-  {사번:"226205",이름:"강광영",직위:"책임연구원",본부:"VS사업본부",사업부:"VS연구소",점수:52,합격여부:"불합격"},
-  {사번:"263542",이름:"최산관",직위:"책임연구원",본부:"HS사업본부",사업부:"HS연구소",점수:49,합격여부:"불합격"},
-  {사번:"221301",이름:"이현주",직위:"책임연구원",본부:"ES사업본부",사업부:"ES연구소",점수:48,합격여부:"불합격"},
-  {사번:"309213",이름:"정진환",직위:"책임연구원",본부:"VS사업본부",사업부:"VS연구소",점수:45,합격여부:"불합격"},
-  {사번:"309214",이름:"이수열",직위:"선임연구원",본부:"ES사업본부",사업부:"RAC사업부",점수:45,합격여부:"불합격"},
-];
+function clamp(v){ return Math.max(0, Math.min(100, v)); }
 
-// ── 필터 옵션 초기화 ──────────────────────────────
-(function initFilters() {
-  const divSet   = [...new Set(ALL_DATA.map(d => d.본부))].sort();
-  const titleSet = [...new Set(ALL_DATA.map(d => d.직위))].sort();
-  const divSel   = document.getElementById('filterDiv');
-  const titSel   = document.getElementById('filterTitle');
-  divSet.forEach(v   => { const o = document.createElement('option'); o.value = v; o.textContent = v; divSel.appendChild(o); });
-  titleSet.forEach(v => { const o = document.createElement('option'); o.value = v; o.textContent = v; titSel.appendChild(o); });
-})();
+// ═══════════════════════════════════════
+// OUTCOMES DATA
+// ═══════════════════════════════════════
+const OUTCOMES = {
+  1:{
+    A:{
+      v:'❌', cls:'r-bad',
+      t:'학습자들이 이탈하고 있습니다',
+      d:'콘텐츠는 있지만 방향이 없습니다. 학습자들은 무엇을 봐야 할지 몰라 첫 주에 70%가 이탈했습니다.',
+      ch:{e:-25,c:-20,r:0,f:0},
+      i:'❌ 콘텐츠 ≠ 학습입니다. 콘텐츠는 재료일 뿐, 학습은 방향 있는 경험에서 일어납니다.'
+    },
+    B:{
+      v:'⚠️', cls:'r-ok',
+      t:'자율은 줬지만 성장이 없습니다',
+      d:'자율성을 줬지만 방향이 없었습니다. 자율 ≠ 방치. 학습자 절반이 방향을 잃고 이탈했습니다.',
+      ch:{e:-15,c:-30,r:-10,f:0},
+      i:'⚠️ 자율 학습 = 방치가 아닙니다. 방향이 있는 자율성이 진짜 자기주도 학습입니다.'
+    },
+    C:{
+      v:'✅', cls:'r-good',
+      t:'학습자들이 움직이기 시작했습니다',
+      d:'목표가 명확하고 단계가 있으니 학습자들이 무엇을 해야 할지 알게 됐습니다. 참여율이 올라갑니다.',
+      ch:{e:+20,c:+15,r:+5,f:0},
+      i:'✅ 조직이 만들어주는 환경이 자기주도 학습의 전제조건입니다. 방향 있는 자율성이 핵심!'
+    }
+  },
+  2:{
+    A:{
+      v:'❌', cls:'r-bad',
+      t:'일회성 이벤트로 끝났습니다',
+      d:'집합 교육은 성공적이었지만 그 다음이 없었습니다. 한 달 후 학습 내용의 80%가 사라졌습니다.',
+      ch:{e:0,c:-10,r:-25,f:0},
+      i:'❌ 학습은 점(·)이 아니라 선(—)입니다. 한 번의 이벤트가 아닌 지속적 여정이 필요합니다.'
+    },
+    B:{
+      v:'✅', cls:'r-good',
+      t:'학습자들이 계속 돌아오고 있습니다',
+      d:'사이클 구조가 작동합니다. 실습·피드백·재도전의 반복이 자연스럽게 학습 습관을 만들었습니다.',
+      ch:{e:+10,c:+25,r:+30,f:+5},
+      i:'✅ 학습 → 적용 → 피드백 → 재학습의 반복 구조가 지속 성장을 만듭니다.'
+    },
+    C:{
+      v:'⚠️', cls:'r-ok',
+      t:'연결감은 있지만 성장이 없습니다',
+      d:'뉴스레터로 연결은 유지됐지만, 실제 적용과 피드백이 없어 역량 성장으로 이어지지 않았습니다.',
+      ch:{e:+5,c:0,r:0,f:0},
+      i:'⚠️ 정보 전달 ≠ 학습 경험. 적용과 피드백 루프 없이는 진짜 성장이 일어나지 않습니다.'
+    }
+  },
+  3:{
+    A:{
+      v:'❌', cls:'r-bad',
+      t:'학습자들이 의무감으로 참여합니다',
+      d:'목차형 자료는 체계적이지만 학습자 마음속에 "왜 해야 하는가"의 답이 없습니다. 의무만 남습니다.',
+      ch:{e:-10,c:-5,r:0,f:0},
+      i:'❌ 세계관 없는 학습은 의무입니다. Story · Role · Mission 없이는 진짜 몰입이 일어나지 않습니다.'
+    },
+    B:{
+      v:'✅', cls:'r-good',
+      t:'학습자들이 스스로 다음을 요청합니다',
+      d:'같은 콘텐츠인데 완주율이 3배 올랐습니다. 세계관이 의미(Why)·몰입(Role)·지속성(Next)을 부여했습니다.',
+      ch:{e:+25,c:+20,r:+5,f:+15},
+      i:'✅ 세계관 = Story + Role + Mission. "해야 하는 학습"이 "참여하고 싶은 경험"으로 바뀝니다.'
+    },
+    C:{
+      v:'⚠️', cls:'r-ok',
+      t:'약간의 개선은 있지만 한계가 있습니다',
+      d:'퀴즈와 포인트로 단기 참여는 올랐지만, 내면의 동기 없이는 지속되지 않습니다.',
+      ch:{e:+8,c:+5,r:0,f:0},
+      i:'⚠️ 외적 보상만으로는 지속적 몰입을 만들 수 없습니다. 세계관이 내면의 동기를 자극합니다.'
+    }
+  },
+  4:{
+    A:{
+      v:'⚠️', cls:'r-ok',
+      t:'프로그램은 끝났지만 문화는 없습니다',
+      d:'잘 마무리됐습니다. 하지만 학습자들은 소비자로 끝났습니다. 다음에 꼭 돌아온다는 보장이 없습니다.',
+      ch:{e:0,c:0,r:0,f:+5},
+      i:'⚠️ 수료 = 끝이 아닌 새로운 시작으로 설계해야 합니다. 커뮤니티와 정체성이 없으면 팬이 생기지 않습니다.'
+    },
+    B:{
+      v:'✅', cls:'r-good',
+      t:'학습자들이 팬이 되었습니다',
+      d:'학습자들이 주변에 추천하고 다음 챕터를 기다리기 시작했습니다. 학습 문화가 만들어지고 있습니다.',
+      ch:{e:+10,c:+5,r:+25,f:+40},
+      i:'✅ 지속성은 커뮤니티 + 인정 + 정체성에서 나옵니다. 학습자를 팬으로 만드는 것이 LED의 최종 목표입니다.'
+    },
+    C:{
+      v:'⚠️', cls:'r-ok',
+      t:'재참여율이 조금 올랐습니다',
+      d:'할인 쿠폰으로 일부 학습자가 돌아왔지만, 외적 보상에만 의존한 재참여는 지속되기 어렵습니다.',
+      ch:{e:0,c:0,r:+10,f:+10},
+      i:'⚠️ 외적 보상은 단기 효과는 있지만 진짜 팬을 만들지 못합니다. 정체성과 커뮤니티가 있어야 합니다.'
+    }
+  }
+};
 
-// ── Chart instances ──────────────────────────────
-let charts = {};
-
-function destroyChart(id) {
-  if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+// ═══════════════════════════════════════
+// SCREEN / HUD
+// ═══════════════════════════════════════
+function goScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-'+id).classList.add('active');
+  window.scrollTo(0,0);
 }
 
-// ── Helpers ──────────────────────────────────────
-function pct(a, b) { return b === 0 ? 0 : Math.round(a / b * 100); }
-function avg(arr)   { return arr.length === 0 ? 0 : (arr.reduce((s,v)=>s+v,0)/arr.length).toFixed(1); }
-function colorByRate(r) {
-  if (r >= 80) return { fill:'#3fb950', cls:'fill-good' };
-  if (r >= 60) return { fill:'#d29922', cls:'fill-warn' };
-  return { fill:'#f85149', cls:'fill-bad' };
+function updateHUD(label){
+  document.getElementById('hud').classList.add('visible');
+  document.getElementById('hudAct').textContent = label;
+  const map = [{k:'e',suf:'E'},{k:'c',suf:'C'},{k:'r',suf:'R'},{k:'f',suf:'F'}];
+  map.forEach(m=>{
+    const v = clamp(S[m.k]);
+    document.getElementById('h'+m.suf).textContent = v;
+    document.getElementById('b'+m.suf).style.width = v+'%';
+  });
 }
 
-// ── Main render ──────────────────────────────────
-function render(data) {
-  const total      = data.length;
-  const passArr    = data.filter(d => d.합격여부 === '합격');
-  const failArr    = data.filter(d => d.합격여부 === '불합격');
-  const passCount  = passArr.length;
-  const failCount  = failArr.length;
-  const passRate   = pct(passCount, total);
-  const avgScore   = avg(data.map(d => d.점수));
+// ═══════════════════════════════════════
+// GAME FLOW
+// ═══════════════════════════════════════
+function startGame(){
+  S = {e:50,c:40,r:30,f:20};
+  choices = {};
+  document.getElementById('scoreArc').style.transition='none';
+  document.getElementById('scoreArc').style.strokeDashoffset='339.3';
+  updateHUD('PROLOGUE');
+  goScreen('act0');
+}
 
-  // KPI
-  document.getElementById('kpiTotal').textContent     = total + '명';
-  document.getElementById('kpiAvg').textContent       = avgScore + '점';
-  document.getElementById('kpiPassRate').textContent  = passRate + '%';
-  document.getElementById('kpiPassSub').textContent   = `합격 ${passCount}명 / 전체 ${total}명`;
-  document.getElementById('kpiFailCount').textContent = failCount + '명';
-  document.getElementById('kpiFailSub').textContent   = `불합격률 ${pct(failCount,total)}%`;
+function goToAct(n){
+  updateHUD('ACT '+n);
+  goScreen('act'+n);
+}
 
-  // ── 본부별 통계 집계 ──────────────────────────
-  const divMap = {};
-  data.forEach(d => {
-    if (!divMap[d.본부]) divMap[d.본부] = [];
-    divMap[d.본부].push(d);
-  });
-  const divLabels = Object.keys(divMap).sort();
+function choose(act, ch){
+  choices[act] = ch;
+  const o = OUTCOMES[act][ch];
+  // apply stat changes
+  S.e = clamp(S.e + o.ch.e);
+  S.c = clamp(S.c + o.ch.c);
+  S.r = clamp(S.r + o.ch.r);
+  S.f = clamp(S.f + o.ch.f);
 
-  // ── 차트 1: 본부별 합격률 ─────────────────────
-  destroyChart('divPassChart');
-  const divPassRates = divLabels.map(k => pct(divMap[k].filter(d=>d.합격여부==='합격').length, divMap[k].length));
-  charts['divPassChart'] = new Chart(document.getElementById('divPassChart'), {
-    type: 'bar',
-    data: {
-      labels: divLabels,
-      datasets: [{
-        label: '합격률 (%)',
-        data: divPassRates,
-        backgroundColor: divPassRates.map(r => r >= 80 ? '#3fb95088' : r >= 60 ? '#d2992288' : '#f8514988'),
-        borderColor:     divPassRates.map(r => r >= 80 ? '#3fb950'   : r >= 60 ? '#d29922'   : '#f85149'),
-        borderWidth: 2, borderRadius: 5,
-      }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        annotation: { annotations: { line1: { type:'line', yMin:60, yMax:60, borderColor:'#f85149', borderWidth:1.5, borderDash:[5,5] } } },
-        tooltip: { callbacks: { label: ctx => ` ${ctx.raw}%` } }
-      },
-      scales: {
-        x: { grid:{color:'#21262d'}, ticks:{color:'#8b949e', font:{size:11}} },
-        y: { grid:{color:'#21262d'}, ticks:{color:'#8b949e', callback:v=>v+'%'}, min:0, max:100,
-             annotation: { annotations: { baseline: { type:'line', yMin:60, yMax:60, borderColor:'#f85149', borderWidth:1, borderDash:[4,4] } } }
-        }
-      }
-    }
-  });
+  // build result HTML
+  const items = [
+    {k:'e',icon:'👥',label:'참여율',d:o.ch.e},
+    {k:'c',icon:'✅',label:'완주율',d:o.ch.c},
+    {k:'r',icon:'🔄',label:'재학습률',d:o.ch.r},
+    {k:'f',icon:'⭐',label:'팬덤지수',d:o.ch.f},
+  ];
+  const changesHTML = items.map(i=>{
+    const cls = i.d>0?'up':i.d<0?'dn':'nc';
+    const txt = i.d===0?'변화없음':(i.d>0?'+':'')+i.d;
+    return `<div class="sc-item">
+      <div class="sc-icon">${i.icon}</div>
+      <div><div class="sc-lbl">${i.label}</div><div class="sc-val ${cls}">${txt}</div></div>
+    </div>`;
+  }).join('');
 
-  // ── 차트 2: 본부별 평균점수 ───────────────────
-  destroyChart('divScoreChart');
-  const divAvgScores = divLabels.map(k => parseFloat(avg(divMap[k].map(d=>d.점수))));
-  charts['divScoreChart'] = new Chart(document.getElementById('divScoreChart'), {
-    type: 'bar',
-    data: {
-      labels: divLabels,
-      datasets: [{
-        label: '평균 점수',
-        data: divAvgScores,
-        backgroundColor: divAvgScores.map(s => s >= 70 ? '#1f6feb88' : s >= 60 ? '#d2992288' : '#f8514988'),
-        borderColor:     divAvgScores.map(s => s >= 70 ? '#1f6feb'   : s >= 60 ? '#d29922'   : '#f85149'),
-        borderWidth: 2, borderRadius: 5,
-      }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend:{display:false}, tooltip:{ callbacks:{label:ctx=>` ${ctx.raw}점`} } },
-      scales: {
-        x: { grid:{color:'#21262d'}, ticks:{color:'#8b949e',font:{size:11}} },
-        y: { grid:{color:'#21262d'}, ticks:{color:'#8b949e',callback:v=>v+'점'}, min:40, max:100 }
-      }
-    }
-  });
+  const next = act<4
+    ? `<button class="btn-primary" onclick="goToAct(${act+1})">다음 미션 →</button>`
+    : `<button class="btn-primary" onclick="showEpilogue()">최종 결과 보기 →</button>`;
 
-  // ── 차트 3: 점수 분포 히스토그램 ─────────────
-  destroyChart('histChart');
-  const bins = {};
-  for (let i=40; i<=100; i+=2) bins[i] = 0;
-  data.forEach(d => {
-    const key = Math.floor(d.점수/2)*2;
-    if (bins[key] !== undefined) bins[key]++;
-    else bins[key] = 1;
-  });
-  const histLabels = Object.keys(bins).map(Number).sort((a,b)=>a-b);
-  const histValues = histLabels.map(k => bins[k]);
-  charts['histChart'] = new Chart(document.getElementById('histChart'), {
-    type: 'bar',
-    data: {
-      labels: histLabels.map(v=>v+'점'),
-      datasets: [{
-        label: '인원',
-        data: histValues,
-        backgroundColor: histLabels.map(v => v >= PASS ? '#1f6feb99' : '#f8514966'),
-        borderColor:     histLabels.map(v => v >= PASS ? '#1f6feb'   : '#f85149'),
-        borderWidth: 1, borderRadius: 3, barPercentage: 0.9, categoryPercentage: 0.9,
-      }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: { callbacks: { label: ctx => ` ${ctx.raw}명` } }
-      },
-      scales: {
-        x: { grid:{color:'#21262d'}, ticks:{color:'#8b949e',font:{size:10}} },
-        y: { grid:{color:'#21262d'}, ticks:{color:'#8b949e',stepSize:1} }
-      }
-    }
-  });
+  document.getElementById('r'+act).innerHTML = `
+    <div class="result-header">
+      <div class="result-verdict">${o.v}</div>
+      <div class="result-ttl ${o.cls}">${o.t}</div>
+      <div class="result-desc">${o.d}</div>
+    </div>
+    <div class="stat-changes">${changesHTML}</div>
+    <div class="insight-box">
+      <div class="insight-lbl">💡 핵심 인사이트</div>
+      <div class="insight-txt">${o.i}</div>
+    </div>
+    <div style="text-align:center">${next}</div>
+  `;
 
-  // ── 차트 4: 직위별 합격 현황 (도넛) ──────────
-  destroyChart('titleChart');
-  const titleMap = {};
-  data.forEach(d => {
-    if (!titleMap[d.직위]) titleMap[d.직위] = {합격:0, 불합격:0};
-    titleMap[d.직위][d.합격여부]++;
-  });
-  const titleLabels = Object.keys(titleMap);
-  charts['titleChart'] = new Chart(document.getElementById('titleChart'), {
-    type: 'bar',
-    data: {
-      labels: titleLabels,
-      datasets: [
-        { label:'합격',   data: titleLabels.map(k=>titleMap[k].합격),   backgroundColor:'#3fb95088', borderColor:'#3fb950', borderWidth:2, borderRadius:4 },
-        { label:'불합격', data: titleLabels.map(k=>titleMap[k].불합격), backgroundColor:'#f8514966', borderColor:'#f85149', borderWidth:2, borderRadius:4 },
-      ]
-    },
-    options: {
-      responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{ labels:{color:'#8b949e',font:{size:11}} } },
-      scales:{
-        x:{ grid:{color:'#21262d'}, ticks:{color:'#8b949e'} },
-        y:{ grid:{color:'#21262d'}, ticks:{color:'#8b949e',stepSize:1}, stacked:false }
-      }
-    }
-  });
+  updateHUD('ACT '+act+' 결과');
+  goScreen('act'+act+'-result');
+}
 
-  // ── 차트 5: 점수 구간별 인원 ─────────────────
-  destroyChart('bandChart');
-  const bands = {'40-49':0,'50-59':0,'60-69':0,'70-79':0,'80-89':0,'90-100':0};
-  data.forEach(d => {
-    if      (d.점수>=90) bands['90-100']++;
-    else if (d.점수>=80) bands['80-89']++;
-    else if (d.점수>=70) bands['70-79']++;
-    else if (d.점수>=60) bands['60-69']++;
-    else if (d.점수>=50) bands['50-59']++;
-    else                 bands['40-49']++;
-  });
-  charts['bandChart'] = new Chart(document.getElementById('bandChart'), {
-    type: 'bar',
-    data: {
-      labels: Object.keys(bands),
-      datasets:[{
-        label:'인원',
-        data: Object.values(bands),
-        backgroundColor:['#f8514966','#f8514988','#3fb95066','#3fb95088','#1f6feb88','#1f6febcc'],
-        borderColor:    ['#f85149','#f85149','#3fb950','#3fb950','#1f6feb','#1f6feb'],
-        borderWidth:2, borderRadius:5,
-      }]
-    },
-    options:{
-      responsive:true, maintainAspectRatio:false,
-      plugins:{legend:{display:false}, tooltip:{callbacks:{label:ctx=>` ${ctx.raw}명`}}},
-      scales:{
-        x:{grid:{color:'#21262d'}, ticks:{color:'#8b949e'}},
-        y:{grid:{color:'#21262d'}, ticks:{color:'#8b949e',stepSize:1}}
-      }
-    }
-  });
+// ═══════════════════════════════════════
+// EPILOGUE
+// ═══════════════════════════════════════
+function showEpilogue(){
+  const avg = Math.round((S.e+S.c+S.r+S.f)/4);
 
-  // ── 거버넌스 Risk 섹션 ────────────────────────
-  const riskRow = document.getElementById('riskRow');
-  riskRow.innerHTML = '';
-  let found = false;
-  divLabels.forEach(k => {
-    const arr  = divMap[k];
-    const pr   = pct(arr.filter(d=>d.합격여부==='합격').length, arr.length);
-    if (pr < 70) {
-      found = true;
-      const cls = pr < 50 ? 'danger' : 'warn';
-      const item = document.createElement('div');
-      item.className = `risk-item ${cls}`;
-      item.innerHTML = `<div class="ri-div">${k}</div><div class="ri-rate">${pr}%</div><div class="ri-count">응시 ${arr.length}명 · 불합격 ${arr.filter(d=>d.합격여부==='불합격').length}명</div>`;
-      riskRow.appendChild(item);
-    }
-  });
-  if (!found) {
-    riskRow.innerHTML = '<div style="font-size:0.82rem;color:#3fb950;padding:8px 0">✅ 모든 본부의 합격률이 70% 이상입니다.</div>';
+  let tier, color, sub, msg;
+  if(avg>=80){
+    tier='🏆 전설의 LED'; color='#00d4ff';
+    sub='당신은 학습 세계를 구했습니다';
+    msg='<strong>완벽한 학습 경험 설계자.</strong><br><br>방향 있는 자율성, 여정 설계, 세계관 몰입, 팬덤 생태계 — 4가지 모두를 마스터했습니다. 조직의 학습 문화가 완전히 복원되었습니다.';
+  } else if(avg>=65){
+    tier='⭐ 마스터 LED'; color='#22c55e';
+    sub='지속 가능한 학습 문화를 구축했습니다';
+    msg='<strong>훌륭한 경험 설계자.</strong><br><br>대부분의 선택이 올바른 방향이었습니다. 지속 가능한 학습 문화의 토대가 만들어졌습니다. 팬덤 생태계 설계를 더 강화하면 완벽합니다.';
+  } else if(avg>=50){
+    tier='🌱 성장 중인 LED'; color='#f59e0b';
+    sub='좋은 방향이지만 더 다듬을 여지가 있습니다';
+    msg='<strong>성장하는 경험 설계자.</strong><br><br>몇 가지 선택이 학습자 이탈로 이어졌습니다. 자기주도 학습의 본질과 세계관의 힘을 다시 생각해보세요. 다시 도전하면 더 좋은 결과가 기다립니다!';
+  } else {
+    tier='🔰 견습 LED'; color='#a855f7';
+    sub='다시 도전하세요. 학습자들이 기다립니다';
+    msg='<strong>아직 배울 것이 많습니다.</strong><br><br>콘텐츠 중심, 정보 전달 중심의 사고에서 벗어나세요. 학습 경험은 정보가 아닌 여정·의미·관계에서 만들어집니다. 다시 도전해보세요!';
   }
 
-  // ── 본부별 상세 테이블 ────────────────────────
-  const tbody = document.getElementById('orgTableBody');
-  tbody.innerHTML = '';
-  divLabels.forEach(k => {
-    const arr    = divMap[k];
-    const pCnt   = arr.filter(d=>d.합격여부==='합격').length;
-    const fCnt   = arr.length - pCnt;
-    const pr     = pct(pCnt, arr.length);
-    const scores = arr.map(d=>d.점수);
-    const avgs   = avg(scores);
-    const maxS   = Math.max(...scores);
-    const minS   = Math.min(...scores);
-    const { fill, cls } = colorByRate(pr);
-    const warn   = pr < 70 ? '<span class="warn-tag">주의</span>' : '';
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td><strong>${k}</strong>${warn}</td>
-      <td>${arr.length}명</td>
-      <td><span class="badge-pass">${pCnt}명</span></td>
-      <td><span class="badge-fail">${fCnt}명</span></td>
-      <td>
-        <div class="rate-cell">
-          <span style="font-weight:700;color:${fill};min-width:36px">${pr}%</span>
-          <div class="rate-bar-bg"><div class="rate-bar-fill ${cls}" style="width:${pr}%"></div></div>
-        </div>
-      </td>
-      <td class="score-num">${avgs}점</td>
-      <td style="color:#3fb950">${maxS}점</td>
-      <td style="color:#f85149">${minS}점</td>
-      <td>${pr>=80?'<span style="color:#3fb950">●</span> 양호':pr>=60?'<span style="color:#d29922">●</span> 보통':'<span style="color:#f85149">●</span> 미달'}</td>
-    `;
-    tbody.appendChild(tr);
-  });
+  document.getElementById('epTier').textContent = tier;
+  document.getElementById('epTier').style.color = color;
+  document.getElementById('epSub').textContent = sub;
+  document.getElementById('epMsg').innerHTML = msg;
+  document.getElementById('scoreVal').textContent = avg;
 
-  // ── 전체 목록 테이블 ──────────────────────────
-  const listBody = document.getElementById('listTableBody');
-  listBody.innerHTML = '';
-  document.getElementById('listCount').textContent = data.length + '명';
-  data.forEach(d => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td style="color:#8b949e;font-size:0.75rem">${d.사번}</td>
-      <td><strong>${d.이름}</strong></td>
-      <td style="color:#8b949e">${d.직위}</td>
-      <td>${d.본부}</td>
-      <td style="color:#8b949e">${d.사업부}</td>
-      <td class="score-num" style="color:${d.점수>=PASS?'#3fb950':'#f85149'}">${d.점수}점</td>
-      <td><span class="${d.합격여부==='합격'?'badge-pass':'badge-fail'}">${d.합격여부}</span></td>
-    `;
-    listBody.appendChild(tr);
-  });
+  const statItems = [
+    {k:'e',icon:'👥',label:'참여율',color:'#00d4ff'},
+    {k:'c',icon:'✅',label:'완주율',color:'#22c55e'},
+    {k:'r',icon:'🔄',label:'재학습률',color:'#a855f7'},
+    {k:'f',icon:'⭐',label:'팬덤지수',color:'#f59e0b'},
+  ];
+  document.getElementById('finalStats').innerHTML = statItems.map(i=>`
+    <div class="fs-card">
+      <div class="fs-icon">${i.icon}</div>
+      <div class="fs-val" style="color:${i.color}">${S[i.k]}</div>
+      <div class="fs-lbl">${i.label}</div>
+    </div>
+  `).join('');
+
+  document.getElementById('hud').classList.remove('visible');
+  goScreen('epilogue');
+
+  setTimeout(()=>{
+    const circ = 339.3;
+    const offset = circ - (avg/100)*circ;
+    const arc = document.getElementById('scoreArc');
+    arc.style.transition = 'stroke-dashoffset 1.5s ease';
+    arc.style.strokeDashoffset = offset;
+    arc.style.stroke = color;
+  }, 400);
 }
 
-// ── 필터 적용 ──────────────────────────────────
-function applyFilter() {
-  const div   = document.getElementById('filterDiv').value;
-  const title = document.getElementById('filterTitle').value;
-  const pass  = document.getElementById('filterPass').value;
-  const filtered = ALL_DATA.filter(d =>
-    (div   === 'all' || d.본부    === div)   &&
-    (title === 'all' || d.직위   === title) &&
-    (pass  === 'all' || d.합격여부 === pass)
-  );
-  render(filtered);
+function restart(){
+  document.getElementById('scoreArc').style.transition='none';
+  document.getElementById('scoreArc').style.strokeDashoffset='339.3';
+  setTimeout(startGame, 50);
 }
 
-function resetFilter() {
-  document.getElementById('filterDiv').value   = 'all';
-  document.getElementById('filterTitle').value = 'all';
-  document.getElementById('filterPass').value  = 'all';
-  render(ALL_DATA);
+function shareResult(){
+  const label = {A:'A',B:'B',C:'C'};
+  const lines = [1,2,3,4].map(n=>`ACT ${n}: 선택 ${choices[n]||'?'}`).join('\n');
+  alert(`나의 LED 선택 기록\n\n${lines}\n\n참여율: ${S.e}  완주율: ${S.c}\n재학습률: ${S.r}  팬덤지수: ${S.f}\n\n최종 평균: ${Math.round((S.e+S.c+S.r+S.f)/4)}`);
 }
-
-// ── 초기 렌더링 ──────────────────────────────
-render(ALL_DATA);
 </script>
 </body>
 </html>
